@@ -125,13 +125,9 @@ CREATE INTERACTIVE TABLE IF NOT EXISTS ARCADE_DB.PUBLIC.ARCADE_SCORES (
 USE ROLE ACCOUNTADMIN;
 
 CREATE OR REPLACE INTERACTIVE WAREHOUSE SUMMIT_LAB_WH
+    TABLES (ARCADE_DB.PUBLIC.ARCADE_SCORES)
     WAREHOUSE_SIZE = 'XSMALL'
     COMMENT = 'XS Interactive Warehouse – Summit 2026 lab queries';
-
--- Associate the interactive table and resume to begin cache warming
-ALTER WAREHOUSE SUMMIT_LAB_WH ADD TABLES (ARCADE_DB.PUBLIC.ARCADE_SCORES);
-ALTER WAREHOUSE SUMMIT_LAB_WH RESUME IF SUSPENDED;
-
 
 -- ---------------------------------------------------------------------------
 -- Step 5: Privileges

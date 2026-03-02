@@ -42,6 +42,8 @@ CREATE AUTHENTICATION POLICY IF NOT EXISTS ARCADE_KEYPAIR_POLICY
     MFA_ENROLLMENT         = 'OPTIONAL'
     CLIENT_TYPES           = ('DRIVERS');
 
+-- Remove any existing policy before setting new one
+ALTER USER ARCADE_STREAMING_USER UNSET AUTHENTICATION POLICY;
 ALTER USER ARCADE_STREAMING_USER
     SET AUTHENTICATION POLICY ARCADE_KEYPAIR_POLICY;
 
@@ -85,31 +87,28 @@ USE SCHEMA PUBLIC;
 --  NOTE: No TARGET_LAG or WAREHOUSE clause needed here – those are only
 --        required when refreshing from another table.
 -- ---------------------------------------------------------------------------
-CREATE INTERACTIVE TABLE IF NOT EXISTS ARCADE_DB.PUBLIC.ARCADE_SCORES
+CREATE INTERACTIVE TABLE IF NOT EXISTS ARCADE_DB.PUBLIC.ARCADE_SCORES (
+    SCORE_ID          VARCHAR(36),
+    PLAYER_ID         VARCHAR(36),
+    PLAYER_NAME       VARCHAR(64),
+    PLAYER_COUNTRY    VARCHAR(64),
+    PLAYER_CITY       VARCHAR(64),
+    LATITUDE          FLOAT,
+    LONGITUDE         FLOAT,
+    GAME_NAME         VARCHAR(64),
+    GAME_MODE         VARCHAR(32),
+    PLATFORM          VARCHAR(32),
+    SCORE             NUMBER(12, 0),
+    LEVEL_REACHED     NUMBER(4, 0),
+    DURATION_SECONDS  NUMBER(6, 0),
+    LIVES_REMAINING   NUMBER(2, 0),
+    ACCURACY_PCT      FLOAT,
+    ACHIEVEMENT       VARCHAR(64),
+    GAME_ENDED_AT     TIMESTAMP_NTZ,
+    INGEST_AT         TIMESTAMP_NTZ
+)
     CLUSTER BY (GAME_ENDED_AT)
-    COMMENT = 'Interactive Table – arcade scores, populated via Snowpipe Streaming'
-AS
-SELECT
-    NULL::VARCHAR(36)    AS SCORE_ID,
-    NULL::VARCHAR(36)    AS PLAYER_ID,
-    NULL::VARCHAR(64)    AS PLAYER_NAME,
-    NULL::VARCHAR(64)    AS PLAYER_COUNTRY,
-    NULL::VARCHAR(64)    AS PLAYER_CITY,
-    NULL::FLOAT          AS LATITUDE,
-    NULL::FLOAT          AS LONGITUDE,
-    NULL::VARCHAR(64)    AS GAME_NAME,
-    NULL::VARCHAR(32)    AS GAME_MODE,
-    NULL::VARCHAR(32)    AS PLATFORM,
-    NULL::NUMBER(12, 0)  AS SCORE,
-    NULL::NUMBER(4, 0)   AS LEVEL_REACHED,
-    NULL::NUMBER(6, 0)   AS DURATION_SECONDS,
-    NULL::NUMBER(2, 0)   AS LIVES_REMAINING,
-    NULL::FLOAT          AS ACCURACY_PCT,
-    NULL::VARCHAR(64)    AS ACHIEVEMENT,
-    NULL::TIMESTAMP_NTZ  AS GAME_ENDED_AT,   -- when the game session ended (client)
-    NULL::TIMESTAMP_NTZ  AS INGEST_AT        -- when the row was submitted to the SDK
-FROM (SELECT 1) src
-WHERE FALSE;
+    COMMENT = 'Interactive Table – arcade scores, populated via Snowpipe Streaming';
 
 
 -- ---------------------------------------------------------------------------
@@ -126,12 +125,12 @@ WHERE FALSE;
 USE ROLE ACCOUNTADMIN;
 
 CREATE OR REPLACE INTERACTIVE WAREHOUSE SUMMIT_LAB_WH
-    TABLES = (ARCADE_DB.PUBLIC.ARCADE_SCORES)
     WAREHOUSE_SIZE = 'XSMALL'
     COMMENT = 'XS Interactive Warehouse – Summit 2026 lab queries';
 
--- Interactive warehouses start SUSPENDED; resume to begin cache warming.
-ALTER WAREHOUSE SUMMIT_LAB_WH RESUME;
+-- Associate the interactive table and resume to begin cache warming
+ALTER WAREHOUSE SUMMIT_LAB_WH ADD TABLES (ARCADE_DB.PUBLIC.ARCADE_SCORES);
+ALTER WAREHOUSE SUMMIT_LAB_WH RESUME IF SUSPENDED;
 
 
 -- ---------------------------------------------------------------------------
@@ -139,14 +138,13 @@ ALTER WAREHOUSE SUMMIT_LAB_WH RESUME;
 -- ---------------------------------------------------------------------------
 USE ROLE ACCOUNTADMIN;
 
--- Streaming role: insert into the interactive table + operate the default pipe
--- Default pipe is auto-created as "ARCADE_SCORES-STREAMING" on first SDK call
+-- Streaming role: insert into the interactive table
+-- Note: Default pipe "ARCADE_SCORES-STREAMING" is auto-created on first SDK call;
+--       grants on it must be run AFTER the streamer has connected once.
 GRANT USAGE  ON DATABASE  ARCADE_DB                          TO ROLE ARCADE_STREAMING_ROLE;
 GRANT USAGE  ON SCHEMA    ARCADE_DB.PUBLIC                   TO ROLE ARCADE_STREAMING_ROLE;
 GRANT INSERT, SELECT
     ON TABLE ARCADE_DB.PUBLIC.ARCADE_SCORES                  TO ROLE ARCADE_STREAMING_ROLE;
-GRANT OPERATE, MONITOR
-    ON PIPE ARCADE_DB.PUBLIC."ARCADE_SCORES-STREAMING"       TO ROLE ARCADE_STREAMING_ROLE;
 
 -- Lab attendee read role: query ARCADE_SCORES via the interactive warehouse
 CREATE ROLE IF NOT EXISTS ARCADE_LAB_READER;

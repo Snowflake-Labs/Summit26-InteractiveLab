@@ -55,7 +55,7 @@ Azure: All Azure regions
 
 ---
 
-## Lab Setup (Instructor)
+## Lab Setup
 
 ### 1 — Generate RSA key pair
 
@@ -136,14 +136,16 @@ python arcade_streamer.py
   [14:22:10]  rows:      500  |  50.0 rows/sec  |  errors: 0  |  elapsed:   10s
 ```
 
-### 6 — Let the Interactive Table warm up
+### 6 — Wait for warm-up
 
 The `SUMMIT_INT_WH` Interactive Warehouse starts warming its local SSD cache
 as soon as it resumes. Wait **2–3 minutes** after the streamer starts before
-asking attendees to run interactive queries — the first few queries after
+running interactive queries — the first few queries after
 resume will be slower while the cache populates.
 
-## Lab Exercises (Attendees)
+---
+
+## Lab Exercises
 
 Open **`sql/02_lab_queries.sql`** in Snowsight while the streamer is running.
 

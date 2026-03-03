@@ -6,13 +6,13 @@
 --   Python generator
 --     → Snowpipe Streaming SDK (channels)
 --       → ARCADE_SCORES  (Interactive Table, directly populated)
---         → SUMMIT_LAB_WH  (Interactive Warehouse, XS, always-on)
+--         → SUMMIT_INT_WH  (Interactive Warehouse, XS, always-on)
 --
 -- Snowpipe Streaming uses the channel API, not SQL DML, so it writes
 -- directly into an Interactive Table without any intermediate landing table.
 --
 -- IMPORTANT: CREATE INTERACTIVE TABLE requires a STANDARD warehouse session.
---            Run this script with SUMMIT_SETUP_WH (created in Step 2).
+--            Run this script with SUMMIT_TRAD_WH (created in Step 2).
 -- =============================================================================
 
 
@@ -51,22 +51,22 @@ ALTER USER ARCADE_STREAMING_USER
 -- ---------------------------------------------------------------------------
 -- Step 2: Schema and standard setup warehouse
 --
---  SUMMIT_SETUP_WH is a STANDARD warehouse used only for setup tasks.
+--  SUMMIT_TRAD_WH is a STANDARD warehouse used only for setup tasks.
 --  Snowpipe Streaming does NOT consume warehouse credits.
---  Lab queries use the Interactive Warehouse (SUMMIT_LAB_WH) exclusively.
+--  Lab queries use the Interactive Warehouse (SUMMIT_INT_WH) exclusively.
 -- ---------------------------------------------------------------------------
 USE ROLE ACCOUNTADMIN;
 
 CREATE SCHEMA IF NOT EXISTS ARCADE_DB.PUBLIC;
 
-CREATE WAREHOUSE IF NOT EXISTS SUMMIT_SETUP_WH
+CREATE WAREHOUSE IF NOT EXISTS SUMMIT_TRAD_WH
     WAREHOUSE_SIZE      = XSMALL
     AUTO_SUSPEND        = 60
     AUTO_RESUME         = TRUE
     INITIALLY_SUSPENDED = TRUE
     COMMENT = 'Standard warehouse for setup tasks only (not used for lab queries)';
 
-USE WAREHOUSE SUMMIT_SETUP_WH;
+USE WAREHOUSE SUMMIT_TRAD_WH;
 USE DATABASE ARCADE_DB;
 USE SCHEMA PUBLIC;
 
@@ -124,7 +124,7 @@ CREATE INTERACTIVE TABLE IF NOT EXISTS ARCADE_DB.PUBLIC.ARCADE_SCORES (
 -- ---------------------------------------------------------------------------
 USE ROLE ACCOUNTADMIN;
 
-CREATE OR REPLACE INTERACTIVE WAREHOUSE SUMMIT_LAB_WH
+CREATE OR REPLACE INTERACTIVE WAREHOUSE SUMMIT_INT_WH
     TABLES (ARCADE_DB.PUBLIC.ARCADE_SCORES)
     WAREHOUSE_SIZE = 'XSMALL'
     COMMENT = 'XS Interactive Warehouse – Summit 2026 lab queries';
@@ -141,6 +141,8 @@ GRANT USAGE  ON DATABASE  ARCADE_DB                          TO ROLE ARCADE_STRE
 GRANT USAGE  ON SCHEMA    ARCADE_DB.PUBLIC                   TO ROLE ARCADE_STREAMING_ROLE;
 GRANT INSERT, SELECT
     ON TABLE ARCADE_DB.PUBLIC.ARCADE_SCORES                  TO ROLE ARCADE_STREAMING_ROLE;
+GRANT USAGE  ON WAREHOUSE SUMMIT_INT_WH                      TO ROLE ARCADE_STREAMING_ROLE;
+GRANT USAGE  ON WAREHOUSE SUMMIT_TRAD_WH                     TO ROLE ARCADE_STREAMING_ROLE;
 
 -- Lab attendee read role: query ARCADE_SCORES via the interactive warehouse
 CREATE ROLE IF NOT EXISTS ARCADE_LAB_READER;
@@ -148,8 +150,8 @@ CREATE ROLE IF NOT EXISTS ARCADE_LAB_READER;
 GRANT USAGE  ON DATABASE  ARCADE_DB                          TO ROLE ARCADE_LAB_READER;
 GRANT USAGE  ON SCHEMA    ARCADE_DB.PUBLIC                   TO ROLE ARCADE_LAB_READER;
 GRANT SELECT ON TABLE     ARCADE_DB.PUBLIC.ARCADE_SCORES     TO ROLE ARCADE_LAB_READER;
-GRANT USAGE  ON WAREHOUSE SUMMIT_LAB_WH                      TO ROLE ARCADE_LAB_READER;
-GRANT USAGE  ON WAREHOUSE SUMMIT_SETUP_WH                    TO ROLE ARCADE_LAB_READER;
+GRANT USAGE  ON WAREHOUSE SUMMIT_INT_WH                      TO ROLE ARCADE_LAB_READER;
+GRANT USAGE  ON WAREHOUSE SUMMIT_TRAD_WH                    TO ROLE ARCADE_LAB_READER;
 
 GRANT ROLE ARCADE_LAB_READER TO ROLE SYSADMIN;
 

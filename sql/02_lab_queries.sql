@@ -4,8 +4,8 @@
 --
 -- WAREHOUSE
 -- ───────────────────────────────────────────────────────────────────────────
--- All lab queries use SUMMIT_LAB_WH  (Interactive Warehouse, XS)
--- Use SUMMIT_SETUP_WH (standard) only for admin/metadata queries at the end.
+-- All lab queries use SUMMIT_INT_WH  (Interactive Warehouse, XS)
+-- Use SUMMIT_TRAD_WH (standard) only for admin/metadata queries at the end.
 --
 -- Interactive Warehouse rules:
 --   • SELECT timeout = 5 seconds (add WHERE clauses – it's by design!)
@@ -13,7 +13,7 @@
 --   • Does NOT auto-suspend; cache stays warm for instant responses
 -- =============================================================================
 
-USE WAREHOUSE SUMMIT_LAB_WH;
+USE WAREHOUSE SUMMIT_INT_WH;
 USE DATABASE  ARCADE_DB;
 USE SCHEMA    PUBLIC;
 
@@ -58,20 +58,20 @@ LIMIT 18;
 SELECT
     MAX(GAME_ENDED_AT)                       AS LATEST_GAME_ENDED,
     MAX(INGEST_AT)                           AS LATEST_INGEST,
-    DATEDIFF('second',
-        MAX(INGEST_AT), SYSDATE()) AS SECONDS_SINCE_LAST_INGEST
+    DATEDIFF('millisecond',
+        MAX(INGEST_AT), SYSDATE())/1000 AS SECONDS_SINCE_LAST_INGEST
 FROM ARCADE_SCORES
 WHERE INGEST_AT >= DATEADD('minute', -1, CURRENT_TIMESTAMP());
 
 -- 2b. Latency percentiles (last 10 minutes)
 SELECT
-    PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY LAG_MS) AS P50_MS,
-    PERCENTILE_CONT(0.90) WITHIN GROUP (ORDER BY LAG_MS) AS P90_MS,
-    PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY LAG_MS) AS P99_MS,
-    MAX(LAG_MS)                                          AS MAX_MS,
-    ROUND(AVG(LAG_MS))                                   AS AVG_MS
+    PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY LAG_S) AS P50_S,
+    PERCENTILE_CONT(0.90) WITHIN GROUP (ORDER BY LAG_S) AS P90_S,
+    PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY LAG_S) AS P99_S,
+    MAX(LAG_S)                                          AS MAX_S,
+    ROUND(AVG(LAG_S))                                   AS AVG_S
 FROM (
-    SELECT DATEDIFF('millisecond', GAME_ENDED_AT, INGEST_AT) AS LAG_MS
+    SELECT DATEDIFF('millisecond', GAME_ENDED_AT, INGEST_AT)/1000 AS LAG_S
     FROM ARCADE_SCORES
     WHERE INGEST_AT >= DATEADD('minute', -10, CURRENT_TIMESTAMP())
 );
@@ -229,7 +229,7 @@ ORDER BY TIMES_EARNED ASC;
 -- =============================================================================
 
 -- Step A: Interactive Warehouse (sub-second – optimised index + warm cache)
-USE WAREHOUSE SUMMIT_LAB_WH;
+USE WAREHOUSE SUMMIT_INT_WH;
 
 SELECT
     PLAYER_COUNTRY,
@@ -241,7 +241,7 @@ GROUP BY PLAYER_COUNTRY
 ORDER BY SESSIONS DESC;
 
 -- Step B: Standard Warehouse (same query, no index acceleration)
-USE WAREHOUSE SUMMIT_SETUP_WH;
+USE WAREHOUSE SUMMIT_TRAD_WH;
 
 SELECT
     PLAYER_COUNTRY,
@@ -253,17 +253,28 @@ GROUP BY PLAYER_COUNTRY
 ORDER BY SESSIONS DESC;
 
 -- Switch back
-USE WAREHOUSE SUMMIT_LAB_WH;
+USE WAREHOUSE SUMMIT_INT_WH;
 
 
 -- =============================================================================
--- EXERCISE 11  Concurrency demo
+-- EXERCISE 11  Concurrency demo (k6 load test)
 --
--- Open this worksheet in multiple browser tabs and hit Run simultaneously.
--- An Interactive Warehouse is designed to serve high volumes of concurrent
--- queries without queuing – unlike a standard virtual warehouse.
+-- Use the k6 load testing script in k6/concurrency_test.js to simulate
+-- 50 concurrent users. Compare results between SUMMIT_INT_WH and SUMMIT_TRAD_WH.
+--
+-- See README.md for k6 installation and usage instructions.
+--
+-- Quick start:
+--   SNOWFLAKE_ACCOUNT=xy12345 \
+--   SNOWFLAKE_USER=YOUR_USER \
+--   SNOWFLAKE_PRIVATE_KEY_PATH=/path/to/rsa_key.p8 \
+--   SNOWFLAKE_WAREHOUSE=SUMMIT_INT_WH \
+--   ./k6-snowflake run k6/concurrency_test.js
+--
+-- Then run again with SNOWFLAKE_WAREHOUSE=SUMMIT_TRAD_WH to compare.
 -- =============================================================================
 
+-- Sample query used by the k6 test (run manually for reference):
 SELECT
     GAME_NAME,
     COUNT(*)            AS SESSIONS,
@@ -308,7 +319,7 @@ LIMIT 15;
 -- BONUS C  Inspect the Interactive Table metadata
 --          (run as ACCOUNTADMIN or with a standard warehouse)
 -- =============================================================================
-USE WAREHOUSE SUMMIT_SETUP_WH;
+USE WAREHOUSE SUMMIT_TRAD_WH;
 USE ROLE ACCOUNTADMIN;
 
 SHOW INTERACTIVE TABLES IN SCHEMA ARCADE_DB.PUBLIC;

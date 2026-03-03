@@ -164,3 +164,4 @@ SHOW WAREHOUSES LIKE 'SUMMIT%';
 SHOW PIPES IN SCHEMA ARCADE_DB.PUBLIC;
 
 SELECT 'Setup complete – start the Python streamer, then wait ~2 min for cache warm-up.' AS STATUS;
+SELECT 'Setup complete. Start the arcade streamer: cd python && python arcade_streamer.py' AS NEXT_STEP;

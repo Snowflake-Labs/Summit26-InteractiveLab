@@ -17,7 +17,7 @@ DROP WAREHOUSE IF EXISTS SUMMIT_TRAD_WH;
 -- User
 DROP USER IF EXISTS ARCADE_STREAMING_USER;
 
--- Database (cascades to schema, interactive table, and pipe)
+-- Database (cascades to schema, interactive table, and pipes)
 DROP DATABASE IF EXISTS ARCADE_DB;
 
 -- Roles

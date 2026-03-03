@@ -143,8 +143,6 @@ as soon as it resumes. Wait **2–3 minutes** after the streamer starts before
 asking attendees to run interactive queries — the first few queries after
 resume will be slower while the cache populates.
 
----
-
 ## Lab Exercises (Attendees)
 
 Open **`sql/02_lab_queries.sql`** in Snowsight while the streamer is running.
@@ -406,7 +404,7 @@ python arcade_streamer.py --dry-run --rows 5
 snow sql -f sql/03_cleanup.sql --connection <your-connection>
 ```
 
-Drops both warehouses, the database (and all tables/pipe), and the service user.
+Drops both warehouses, the database (and all tables/pipes), and the service user.
 
 ---
 
@@ -419,14 +417,14 @@ Summit26-InteractiveLab/
 ├── profile.json.example
 ├── .gitignore
 ├── sql/
-│   ├── 01_setup.sql        Full Snowflake provisioning
-│   ├── 02_lab_queries.sql  11 exercises + bonus queries
-│   └── 03_cleanup.sql      Teardown
+│   ├── 01_setup.sql                 Full Snowflake provisioning
+│   ├── 02_lab_queries.sql           11 exercises + bonus queries
+│   └── 03_cleanup.sql               Teardown
 ├── python/
-│   ├── config.py           Game catalogue, cities, skill tiers, tuning knobs
-│   ├── generator.py        Realistic score generator (tier-based, weighted distributions)
-│   └── arcade_streamer.py  Snowpipe Streaming SDK ingest (multi-channel, threaded)
+│   ├── config.py                    Game catalogue, cities, skill tiers
+│   ├── generator.py                 Realistic score generator
+│   └── arcade_streamer.py           Snowpipe Streaming SDK ingest
 └── jmeter/
-    ├── concurrency_test.jmx      JMeter test plan
-    └── run_concurrency_test.sh   Test runner script
+    ├── concurrency_test.jmx         JMeter test plan
+    └── run_concurrency_test.sh      Test runner script
 ```

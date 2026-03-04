@@ -72,12 +72,7 @@ echo "ALTER USER ARCADE_STREAMING_USER SET RSA_PUBLIC_KEY='$PUBK';"
 
 ### 2 — Run the Snowflake setup script
 
-Execute **`sql/01_setup.sql`** using a **standard warehouse** session
-(Snowsight, SnowSQL, or Snowflake CLI):
-
-```bash
-snow sql -f sql/01_setup.sql --connection <your-connection>
-```
+Open **`sql/01_setup.sql`** in Snowsight and run it using a **standard warehouse** session.
 
 Then immediately paste and run the `ALTER USER` statement from Step 1.
 
@@ -402,9 +397,7 @@ python arcade_streamer.py --dry-run --rows 5
 
 ## Cleanup
 
-```bash
-snow sql -f sql/03_cleanup.sql --connection <your-connection>
-```
+Open **`sql/03_cleanup.sql`** in Snowsight and run it.
 
 Drops both warehouses, the database (and all tables/pipes), and the service user.
 

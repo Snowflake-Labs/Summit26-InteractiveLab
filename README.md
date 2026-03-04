@@ -72,11 +72,12 @@ Generates `rsa_key.p8` / `rsa_key.pub` if they don't exist, then prints the `ALT
 > `rsa_key.p8` is in `.gitignore` and must never be committed.
 
 The script provisions (in order):
-1. Service user + role + RSA auth policy
-2. `ARCADE_DB` database + `SUMMIT_TRAD_WH` standard warehouse
+1. `ARCADE_STREAMING_ROLE` + `ARCADE_STREAMING_USER` + RSA keypair auth policy
+2. `ARCADE_DB` database + `PUBLIC` schema + `SUMMIT_TRAD_WH` standard warehouse
 3. `ARCADE_SCORES` **Interactive Table** (`CLUSTER BY (GAME_ENDED_AT)`, initially empty)
-4. `SUMMIT_INT_WH` **Interactive Warehouse** (XS, resumed automatically)
-5. Grants for streaming role and lab-reader role
+4. `SUMMIT_INT_WH` **Interactive Warehouse** (XS, always-on)
+5. `ARCADE_REPORTING_POOL` compute pool (XS, for the optional Streamlit dashboard)
+6. Grants for `ARCADE_STREAMING_ROLE` and `ARCADE_LAB_READER`
 
 ### 3 — Create `profile.json`
 
@@ -84,14 +85,14 @@ The script provisions (in order):
 cp profile.json.example profile.json
 ```
 
-Edit with your account identifier (the part before `.snowflakecomputing.com`):
+Edit with your account identifier and the **full path** to `rsa_key.p8` (the script from Step 2 prints the exact path):
 
 ```json
 {
     "user":             "ARCADE_STREAMING_USER",
-    "account":          "xy12345",
-    "url":              "https://xy12345.snowflakecomputing.com:443",
-    "private_key_file": "rsa_key.p8",
+    "account":          "YOUR_ORG-YOUR_ACCOUNT",
+    "url":              "https://YOUR_ORG-YOUR_ACCOUNT.snowflakecomputing.com:443",
+    "private_key_file": "/full/path/to/rsa_key.p8",
     "role":             "ARCADE_STREAMING_ROLE"
 }
 ```
@@ -273,11 +274,11 @@ export SNOWFLAKE_PRIVATE_KEY_FILE=/path/to/rsa_key.p8
 
 > **Note:** The test uses the `ARCADE_STREAMING_USER` created in the setup script with RSA key authentication.
 
-**Example for this lab:**
+**Example:**
 
 ```bash
-export SNOWFLAKE_ACCOUNT=SFPRODUCTSTRATEGY-SC_ZBMCPJGOXU
-export SNOWFLAKE_PRIVATE_KEY_FILE=/Users/bculberson/projects/Summit26-InteractiveLab/rsa_key.p8
+export SNOWFLAKE_ACCOUNT=YOUR_ORG-YOUR_ACCOUNT
+export SNOWFLAKE_PRIVATE_KEY_FILE=/full/path/to/rsa_key.p8
 ```
 
 **Test Interactive Warehouse (SUMMIT_INT_WH):**
@@ -328,9 +329,9 @@ Edit `jmeter/concurrency_test.jmx` to adjust:
 ### Troubleshooting
 
 **Connection errors:**
-- Verify RSA key path is correct
+- Verify `SNOWFLAKE_PRIVATE_KEY_FILE` is an absolute path (output by `bash sql/02_service_auth.sh`)
 - Ensure `ARCADE_STREAMING_USER` has been created (run `sql/01_setup.sql`)
-- Confirm RSA public key is set on the user (see setup step 1)
+- Confirm RSA public key is registered on the user (run `bash sql/02_service_auth.sh` and paste SQL into Snowsight)
 
 **JDBC driver not found:**
 - Download the driver: `cd jmeter && curl -L -o snowflake-jdbc.jar https://repo1.maven.org/maven2/net/snowflake/snowflake-jdbc/3.16.1/snowflake-jdbc-3.16.1.jar`
@@ -402,7 +403,7 @@ python arcade_streamer.py --dry-run --rows 5
 
 Open **`sql/05_cleanup.sql`** in Snowsight and run it.
 
-Drops both warehouses, the database (and all tables/pipes), and the service user.
+Drops (in order): the Streamlit dashboard, compute pool, both warehouses, database (cascades to all tables and pipes), service user, and roles.
 
 ---
 
@@ -411,15 +412,16 @@ Drops both warehouses, the database (and all tables/pipes), and the service user
 ```
 Summit26-InteractiveLab/
 ├── README.md
+├── STREAMLIT.md                     Optional Streamlit dashboard setup
 ├── requirements.txt                 Snowpipe Streaming SDK dep
 ├── profile.json.example
 ├── .gitignore
 ├── sql/
-│   ├── 01_setup.sql                 Full Snowflake provisioning
-│   ├── 02_service_auth.sh           Outputs ALTER USER RSA key SQL
+│   ├── 01_setup.sql                 Full Snowflake provisioning (incl. compute pool)
+│   ├── 02_service_auth.sh           Generates RSA key pair + outputs ALTER USER SQL
 │   ├── 03_lab_queries.sql           11 exercises + bonus queries
 │   ├── 04_generate_pat.sql          Generate PAT + snow connection add command
-│   └── 05_cleanup.sql               Teardown
+│   └── 05_cleanup.sql               Teardown (dashboard, pool, warehouses, DB, users)
 ├── python/
 │   ├── config.py                    Game catalogue, cities, skill tiers
 │   ├── generator.py                 Realistic score generator

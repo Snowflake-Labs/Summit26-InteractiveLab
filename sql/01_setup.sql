@@ -29,9 +29,8 @@ CREATE USER IF NOT EXISTS ARCADE_STREAMING_USER
 
 GRANT ROLE ARCADE_STREAMING_ROLE TO USER ARCADE_STREAMING_USER;
 
--- RSA key-pair authentication (see README for key-generation commands).
--- Paste the output of the PUBK shell variable here before running.
--- ALTER USER ARCADE_STREAMING_USER SET RSA_PUBLIC_KEY='<YOUR_PUBLIC_KEY_HERE>';
+-- RSA key-pair authentication is set separately via sql/02_service_auth.sh.
+-- Run that script after this one to register the public key.
 
 CREATE DATABASE IF NOT EXISTS ARCADE_DB
     COMMENT = 'Summit 2026 Interactive Lab – Arcade Streaming Data';

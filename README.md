@@ -415,7 +415,7 @@ Drops both warehouses, the database (and all tables/pipes), and the service user
 ```
 Summit26-InteractiveLab/
 ├── README.md
-├── requirements.txt
+├── requirements.txt                 Snowpipe Streaming SDK dep
 ├── profile.json.example
 ├── .gitignore
 ├── sql/

@@ -2,6 +2,6 @@
     "user":             "ARCADE_STREAMING_USER",
     "account":          "YOUR_ACCOUNT_IDENTIFIER",
     "url":              "https://YOUR_ACCOUNT_IDENTIFIER.snowflakecomputing.com:443",
-    "private_key_file": "rsa_key.p8",
+    "private_key_file": "/full/path/to/rsa_key.p8",
     "role":             "ARCADE_STREAMING_ROLE"
 }

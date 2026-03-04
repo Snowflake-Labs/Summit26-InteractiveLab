@@ -130,7 +130,21 @@ CREATE OR REPLACE INTERACTIVE WAREHOUSE SUMMIT_INT_WH
     COMMENT = 'XS Interactive Warehouse – Summit 2026 lab queries';
 
 -- ---------------------------------------------------------------------------
--- Step 5: Privileges
+-- Step 5: Compute pool for Streamlit dashboard
+-- ---------------------------------------------------------------------------
+USE ROLE ACCOUNTADMIN;
+
+CREATE COMPUTE POOL IF NOT EXISTS ARCADE_REPORTING_POOL
+    MIN_NODES      = 1
+    MAX_NODES      = 1
+    INSTANCE_FAMILY = CPU_X64_XS
+    AUTO_RESUME    = TRUE
+    AUTO_SUSPEND_SECS = 300
+    COMMENT = 'Compute pool for Arcade Scores Streamlit dashboard';
+
+
+-- ---------------------------------------------------------------------------
+-- Step 6: Privileges
 -- ---------------------------------------------------------------------------
 USE ROLE ACCOUNTADMIN;
 

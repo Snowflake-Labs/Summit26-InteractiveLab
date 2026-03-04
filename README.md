@@ -57,24 +57,19 @@ Azure: All Azure regions
 
 ## Lab Setup
 
-### 1 — Generate RSA key pair
-
-```bash
-openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM -out rsa_key.p8 -nocrypt
-openssl rsa -in rsa_key.p8 -pubout -out rsa_key.pub
-
-# Format for ALTER USER
-PUBK=$(grep -v 'KEY-' rsa_key.pub | tr -d '\n')
-echo "ALTER USER ARCADE_STREAMING_USER SET RSA_PUBLIC_KEY='$PUBK';"
-```
-
-> `rsa_key.p8` is in `.gitignore` and must never be committed.
-
-### 2 — Run the Snowflake setup script
+### 1 — Run the Snowflake setup script
 
 Open **`sql/01_setup.sql`** in Snowsight and run it using a **standard warehouse** session.
 
-Then immediately paste and run the `ALTER USER` statement from Step 1.
+### 2 — Register the RSA public key for the service user
+
+```bash
+bash sql/02_service_auth.sh
+```
+
+Generates `rsa_key.p8` / `rsa_key.pub` if they don't exist, then prints the `ALTER USER` statement. Paste it into Snowsight and run it as `ACCOUNTADMIN`.
+
+> `rsa_key.p8` is in `.gitignore` and must never be committed.
 
 The script provisions (in order):
 1. Service user + role + RSA auth policy
@@ -131,7 +126,7 @@ python arcade_streamer.py
   [14:22:10]  rows:      500  |  50.0 rows/sec  |  errors: 0  |  elapsed:   10s
 ```
 
-### 6 — Wait for warm-up
+### 6 — Wait for cache warm-up
 
 The `SUMMIT_INT_WH` Interactive Warehouse starts warming its local SSD cache
 as soon as it resumes. Wait **2–3 minutes** after the streamer starts before
@@ -142,7 +137,7 @@ resume will be slower while the cache populates.
 
 ## Lab Exercises
 
-Open **`sql/02_lab_queries.sql`** in Snowsight while the streamer is running.
+Open **`sql/03_lab_queries.sql`** in Snowsight while the streamer is running.
 
 > **Tip:** Use `SUMMIT_INT_WH` for exercises marked ⚡ and `SUMMIT_TRAD_WH`
 > for exercises marked 🔧. Each `USE WAREHOUSE` statement is already in the
@@ -215,7 +210,15 @@ Interactive Tables support Time Travel even with streaming ingestion.
 
 ---
 
-## Concurrency Testing with JMeter
+## Streamlit Dashboard (Optional)
+
+After completing the lab exercises, deploy a live dashboard against the same `ARCADE_SCORES` data.
+
+See **[STREAMLIT.md](STREAMLIT.md)** for full setup instructions — install the Snowflake CLI and Cortex CLI, generate a PAT via `sql/04_generate_pat.sql`, and deploy the dashboard.
+
+---
+
+## Concurrency Testing with JMeter (Optional)
 
 The `jmeter/` directory contains a load test plan that simulates concurrent users
 querying the warehouse. This demonstrates the Interactive Warehouse's ability
@@ -397,7 +400,7 @@ python arcade_streamer.py --dry-run --rows 5
 
 ## Cleanup
 
-Open **`sql/03_cleanup.sql`** in Snowsight and run it.
+Open **`sql/05_cleanup.sql`** in Snowsight and run it.
 
 Drops both warehouses, the database (and all tables/pipes), and the service user.
 
@@ -413,8 +416,10 @@ Summit26-InteractiveLab/
 ├── .gitignore
 ├── sql/
 │   ├── 01_setup.sql                 Full Snowflake provisioning
-│   ├── 02_lab_queries.sql           11 exercises + bonus queries
-│   └── 03_cleanup.sql               Teardown
+│   ├── 02_service_auth.sh           Outputs ALTER USER RSA key SQL
+│   ├── 03_lab_queries.sql           11 exercises + bonus queries
+│   ├── 04_generate_pat.sql          Generate PAT + snow connection add command
+│   └── 05_cleanup.sql               Teardown
 ├── python/
 │   ├── config.py                    Game catalogue, cities, skill tiers
 │   ├── generator.py                 Realistic score generator

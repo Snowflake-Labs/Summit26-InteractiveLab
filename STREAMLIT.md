@@ -2,63 +2,80 @@
 
 ## Prerequisites
 
-### 1. Install Cortex CLI
+### 1. Install Snowflake CLI
 
-Download and install the Cortex CLI for your platform:
+```bash
+# macOS (Homebrew)
+brew install snowflake-cli
+
+# or pip (into your active venv)
+pip install snowflake-cli
+```
+
+Verify:
+```bash
+snow --version
+```
+
+### 2. Install Cortex CLI
 
 **macOS/Linux:**
 ```bash
-curl -sL https://sfc-cli-installer.s3.amazonaws.com/cortex/install.sh | bash
+curl -LsS https://ai.snowflake.com/static/cc-scripts/install.sh | sh
 ```
 
 **Windows (PowerShell):**
 ```powershell
-iwr https://sfc-cli-installer.s3.amazonaws.com/cortex/install.ps1 -useb | iex
+iwr https://ai.snowflake.com/static/cc-scripts/install.ps1 -useb | iex
 ```
 
-Verify installation:
+Verify:
 ```bash
 cortex --version
 ```
 
-### 2. Setup Snowflake Connection
+### 3. Generate a PAT and register the snow CLI connection
 
-Create a default connection for programmatic token authentication:
+Open **`sql/04_generate_pat.sql`** in Snowsight and run it as the user who will deploy the dashboard.
 
+Copy the `SETUP_COMMAND` result and run it in your terminal — it registers the `snow` connection in one step.
+
+Verify:
 ```bash
-cortex connection add default \
-  --account <your-account> \
-  --user <your-username> \
-  --authenticator externalbrowser
-```
-
-Test the connection:
-```bash
-cortex connection test default
+snow connection test
 ```
 
 ---
 
-## Prompt to Generate Streamlit Dashboard
+## Generate the Streamlit Dashboard with Cortex
+
+Run Cortex from the project root with all tool calls enabled so it can read files, write the app, and deploy it:
+
+```bash
+cortex --dangerously-allow-all-tool-calls
+```
+
+Then send the following prompt:
 
 Use skill `developing-with-streamlit` to create a real-time arcade scores dashboard with the following requirements:
 
 **Data Source:**
-- Table: `ARCADE_DB.PUBLIC.ARCADE_SCORES`
-- Warehouse: `SUMMIT_INT_WH` (Interactive Warehouse)
-- Connection: Use default connection with programmatic token
+ - Table: `ARCADE_DB.PUBLIC.ARCADE_SCORES`
+ - Warehouse: `SUMMIT_INT_WH` (Interactive Warehouse)
+ - Connection: Use default connection with programmatic token
+ - Columns: All columns and tables are uppercase in Snowflake
 
-**Deployment:**
-- Deploy as Streamlit in Snowflake on compute pool
-- Instance family: `CPU_X64_XS`
-- Add external access integration and network rule for PyPI access
+ **Deployment:**
+ - Deploy as Streamlit in Snowflake named `ARCADE_SCORES_DASHBOARD` in `ARCADE_DB.PUBLIC`
+ - Use compute pool `ARCADE_REPORTING_POOL` (already provisioned)
+ - Add external access integration and network rule for PyPI access
 
-**Dashboard Features:**
-1. **Global Leaderboard** - Highest scores in last 24 hours
-2. **Top Players by Game** - Top 5 players per game in last hour
-3. **Geographic Heatmap** - Country-level plays over last hour
-4. **Game Popularity** - Session and player counts by game (last hour)
-5. **Platform Breakdown** - Session and player counts by platform (last hour)
-6. **Recent Activity** - Last 30 scores
-7. **Achievements** - All earned achievements (where ACHIEVEMENT IS NOT NULL) with counts
-8. **Active Cities** - Most active cities in last minute
+ **Dashboard Features:**
+ 1. **Global Leaderboard** - Highest scores in last 24 hours
+ 2. **Top Players by Game** - Top 5 players per game in last hour
+ 3. **Geographic Heatmap** - Country-level plays over last hour
+ 4. **Game Popularity** - Session and player counts by game (last hour)
+ 5. **Platform Breakdown** - Session and player counts by platform (last hour)
+ 6. **Recent Activity** - Last 30 scores
+ 7. **Achievements** - All earned achievements (where ACHIEVEMENT IS NOT NULL) with counts
+ 8. **Active Cities** - Most active cities in last minute

@@ -86,7 +86,7 @@ USE SCHEMA PUBLIC;
 --  NOTE: No TARGET_LAG or WAREHOUSE clause needed here – those are only
 --        required when refreshing from another table.
 -- ---------------------------------------------------------------------------
-CREATE INTERACTIVE TABLE IF NOT EXISTS ARCADE_DB.PUBLIC.ARCADE_SCORES (
+CREATE OR REPLACE INTERACTIVE TABLE ARCADE_DB.PUBLIC.ARCADE_SCORES (
     SCORE_ID          VARCHAR(36),
     PLAYER_ID         VARCHAR(36),
     PLAYER_NAME       VARCHAR(64),
@@ -103,8 +103,7 @@ CREATE INTERACTIVE TABLE IF NOT EXISTS ARCADE_DB.PUBLIC.ARCADE_SCORES (
     LIVES_REMAINING   NUMBER(2, 0),
     ACCURACY_PCT      FLOAT,
     ACHIEVEMENT       VARCHAR(64),
-    GAME_ENDED_AT     TIMESTAMP_NTZ,
-    INGEST_AT         TIMESTAMP_NTZ
+    GAME_ENDED_AT     TIMESTAMP_NTZ
 )
     CLUSTER BY (GAME_ENDED_AT)
     COMMENT = 'Interactive Table – arcade scores, populated via Snowpipe Streaming';
@@ -147,9 +146,7 @@ CREATE COMPUTE POOL IF NOT EXISTS ARCADE_REPORTING_POOL
 -- ---------------------------------------------------------------------------
 USE ROLE ACCOUNTADMIN;
 
--- Streaming role: insert into the interactive table
--- Note: Default pipe "ARCADE_SCORES-STREAMING" is auto-created on first SDK call;
---       grants on it must be run AFTER the streamer has connected once.
+-- Streaming role: insert into the interactive table.
 GRANT USAGE  ON DATABASE  ARCADE_DB                          TO ROLE ARCADE_STREAMING_ROLE;
 GRANT USAGE  ON SCHEMA    ARCADE_DB.PUBLIC                   TO ROLE ARCADE_STREAMING_ROLE;
 GRANT INSERT, SELECT

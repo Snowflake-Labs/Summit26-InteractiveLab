@@ -148,10 +148,10 @@ ORDER BY HIGH_SCORE DESC</stringProp>
     PLAYER_NAME,
     GAME_NAME,
     SCORE,
-    INGEST_AT
+    CREATED_AT
 FROM ARCADE_SCORES
 WHERE GAME_ENDED_AT &gt;= DATEADD(&apos;minute&apos;, -5, CURRENT_TIMESTAMP())
-ORDER BY INGEST_AT DESC
+ORDER BY CREATED_AT DESC
 LIMIT 30</stringProp>
             <stringProp name="queryArguments"></stringProp>
             <stringProp name="queryArgumentsTypes"></stringProp>

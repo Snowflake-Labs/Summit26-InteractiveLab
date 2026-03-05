@@ -123,7 +123,9 @@ python arcade_streamer.py
 ============================================================
 
   [14:22:05]  rows:      512  |  512.0 rows/sec  |  errors: 0  |  elapsed:    1s
-  [14:22:06]  rows:    1,024  |  512.0 rows/sec  |  errors: 0  |  elapsed:    2s
+  [14:22:05]  [latency] ARCADE_CHANNEL_0_A3F2B1C4: 284 ms avg
+  [14:22:10]  rows:    1,024  |  512.0 rows/sec  |  errors: 0  |  elapsed:    6s
+  [14:22:10]  [latency] ARCADE_CHANNEL_0_A3F2B1C4: 271 ms avg
 ```
 
 ### 6 — Wait for cache warm-up
@@ -143,16 +145,17 @@ Open **`sql/03_lab_queries.sql`** in Snowsight while the streamer is running.
 > for exercises marked 🔧. Each `USE WAREHOUSE` statement is already in the
 > query file.
 
-### ⚡ Exercise 1 — Pipeline freshness
+### ⚡ Exercise 1 — Pipeline throughput
 
 Watch row counts grow in real time and measure live ingest throughput (rows/sec).
+The SDK-reported avg processing latency per channel is also printed to the streamer console.
 
-### ⚡ Exercise 2 — End-to-end latency
+### ⚡ Exercise 2 — Data freshness
 
-Each row carries `GAME_ENDED_AT` (when the game ended on the client) and
-`INGEST_AT` (when the row was submitted to the SDK). The P50/P90/P99
-millisecond breakdown shows how quickly Snowpipe Streaming moves data from
-the edge into a queryable Interactive Table.
+Each row carries `GAME_ENDED_AT` (when the score was generated and sent, in UTC).
+The query measures **freshness**: how many seconds ago was the most recently
+committed row? The streamer's console also logs Snowflake-reported avg processing
+latency per channel via the SDK's `get_channel_statuses()` API.
 
 ### ⚡ Exercise 3 — Global leaderboard (Interactive Warehouse)
 
@@ -402,8 +405,7 @@ python arcade_streamer.py --dry-run --rows 5
 | `LIVES_REMAINING` | NUMBER(2,0) | Inversely correlated with score |
 | `ACCURACY_PCT` | FLOAT | Nullable; correlated with skill tier |
 | `ACHIEVEMENT` | VARCHAR(64) | Rare contextual badge (nullable) |
-| `GAME_ENDED_AT` | TIMESTAMP_NTZ | Client-side end time **(clustering key)** |
-| `INGEST_AT` | TIMESTAMP_NTZ | Snowflake commit timestamp |
+| `GAME_ENDED_AT` | TIMESTAMP_NTZ | When the score was generated and sent — UTC, client clock **(clustering key)** |
 
 ---
 

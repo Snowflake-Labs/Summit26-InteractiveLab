@@ -25,56 +25,47 @@ USE SCHEMA    PUBLIC;
 -- 1a. Total rows in the interactive table
 SELECT COUNT(*) AS TOTAL_SCORES FROM ARCADE_SCORES;
 
--- 1b. Rows ingested in the last 60 seconds
+-- 1b. Rows generated in the last 60 seconds
 SELECT
     COUNT(*)                                AS ROWS_LAST_60_SEC,
     ROUND(COUNT(*) / 60.0, 1)              AS ROWS_PER_SECOND,
     COUNT(DISTINCT PLAYER_ID)              AS ACTIVE_PLAYERS
 FROM ARCADE_SCORES
-WHERE INGEST_AT >= DATEADD('second', -60, CURRENT_TIMESTAMP());
+WHERE GAME_ENDED_AT >= DATEADD('second', -60, CURRENT_TIMESTAMP());
 
 -- 1c. Ingest throughput by 10-second bucket (last 3 minutes)
 SELECT
     DATEADD('second',
-        FLOOR(DATEDIFF('second', '2000-01-01'::TIMESTAMP_NTZ, INGEST_AT) / 10) * 10,
+        FLOOR(DATEDIFF('second', '2000-01-01'::TIMESTAMP_NTZ, GAME_ENDED_AT) / 10) * 10,
         '2000-01-01'::TIMESTAMP_NTZ)        AS TIME_BUCKET,
     COUNT(*)                                AS SCORES
 FROM ARCADE_SCORES
-WHERE INGEST_AT >= DATEADD('minute', -3, CURRENT_TIMESTAMP())
+WHERE GAME_ENDED_AT >= DATEADD('minute', -3, CURRENT_TIMESTAMP())
 GROUP BY TIME_BUCKET
 ORDER BY TIME_BUCKET DESC
 LIMIT 18;
 
 
 -- =============================================================================
--- EXERCISE 2  End-to-end latency  (game ended → Snowflake Interactive Table)
+-- EXERCISE 2  Data freshness  (how recent is the latest row?)
 --
--- GAME_ENDED_AT  = when the game session ended on the client
--- INGEST_AT      = when the row was submitted to the Snowpipe Streaming SDK
--- The difference reflects reporting + streaming pipeline latency.
+-- GAME_ENDED_AT = when the score was generated and sent (client UTC time).
+-- Freshness     = how many seconds ago was the most recent row committed.
+--
+-- CONVERT_TIMEZONE ensures the comparison is UTC on both sides regardless
+-- of your Snowsight session timezone.
 -- =============================================================================
 
--- 2a. Latest row freshness
 SELECT
-    MAX(GAME_ENDED_AT)                       AS LATEST_GAME_ENDED,
-    MAX(INGEST_AT)                           AS LATEST_INGEST,
-    DATEDIFF('millisecond',
-        MAX(INGEST_AT), SYSDATE())/1000 AS SECONDS_SINCE_LAST_INGEST
+    MAX(GAME_ENDED_AT)                                                    AS LATEST_GAME_ENDED,
+    DATEDIFF(
+        'millisecond',
+        MAX(GAME_ENDED_AT),
+        CONVERT_TIMEZONE('UTC', CURRENT_TIMESTAMP())::TIMESTAMP_NTZ
+    ) / 1000.0                                                            AS FRESHNESS_SEC
 FROM ARCADE_SCORES
-WHERE INGEST_AT >= DATEADD('minute', -1, CURRENT_TIMESTAMP());
-
--- 2b. Latency percentiles (last 10 minutes)
-SELECT
-    PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY LAG_S) AS P50_S,
-    PERCENTILE_CONT(0.90) WITHIN GROUP (ORDER BY LAG_S) AS P90_S,
-    PERCENTILE_CONT(0.99) WITHIN GROUP (ORDER BY LAG_S) AS P99_S,
-    MAX(LAG_S)                                          AS MAX_S,
-    ROUND(AVG(LAG_S))                                   AS AVG_S
-FROM (
-    SELECT DATEDIFF('millisecond', GAME_ENDED_AT, INGEST_AT)/1000 AS LAG_S
-    FROM ARCADE_SCORES
-    WHERE INGEST_AT >= DATEADD('minute', -10, CURRENT_TIMESTAMP())
-);
+WHERE GAME_ENDED_AT >= DATEADD('minute', -5,
+          CONVERT_TIMEZONE('UTC', CURRENT_TIMESTAMP())::TIMESTAMP_NTZ);
 
 
 -- =============================================================================
@@ -195,12 +186,10 @@ SELECT
     LEVEL_REACHED,
     PLATFORM,
     COALESCE(ACHIEVEMENT, '—')              AS ACHIEVEMENT,
-    DATEDIFF('millisecond',
-        GAME_ENDED_AT, INGEST_AT)           AS REPORT_LAG_MS,
-    INGEST_AT
+    GAME_ENDED_AT
 FROM ARCADE_SCORES
 WHERE GAME_ENDED_AT >= DATEADD('minute', -5, CURRENT_TIMESTAMP())
-ORDER BY INGEST_AT DESC
+ORDER BY GAME_ENDED_AT DESC
 LIMIT 30;
 
 
@@ -294,10 +283,10 @@ ORDER BY HIGH_SCORE DESC;
 SELECT COUNT(*) AS ROWS_5_MIN_AGO
 FROM ARCADE_SCORES AT(OFFSET => -300);
 
--- How many rows have arrived in the last 5 minutes?
+-- How many rows were generated in the last 5 minutes?
 SELECT COUNT(*) AS NEW_ROWS_LAST_5_MIN
 FROM ARCADE_SCORES
-WHERE INGEST_AT >= DATEADD('minute', -5, CURRENT_TIMESTAMP());
+WHERE GAME_ENDED_AT >= DATEADD('minute', -5, CURRENT_TIMESTAMP());
 
 
 -- =============================================================================

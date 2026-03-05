@@ -64,6 +64,8 @@ class Stats:
 
 STATS = Stats()
 _STOP_EVENT = threading.Event()
+_ACTIVE_CHANNEL_NAMES: set[str] = set()
+_CHANNELS_LOCK = threading.Lock()
 
 
 # ---------------------------------------------------------------------------
@@ -85,33 +87,39 @@ def channel_worker(
     offset_token = 0
 
     with client.open_channel(channel_name)[0] as channel:
-        print(f"  [channel-{channel_id}] opened: {channel.channel_name}")
+        with _CHANNELS_LOCK:
+            _ACTIVE_CHANNEL_NAMES.add(channel.channel_name)
+        try:
+            print(f"  [channel-{channel_id}] opened: {channel.channel_name}")
 
-        while not _STOP_EVENT.is_set():
-            if rows_target is not None and STATS.total_rows >= rows_target:
-                _STOP_EVENT.set()
-                break
+            while not _STOP_EVENT.is_set():
+                if rows_target is not None and STATS.total_rows >= rows_target:
+                    _STOP_EVENT.set()
+                    break
 
-            batch = generate_batch(rows_per_batch)
+                batch = generate_batch(rows_per_batch)
 
-            errors = 0
-            for row in batch:
-                try:
-                    channel.append_row(row, str(offset_token))
-                    offset_token += 1
-                except Exception as exc:
-                    errors += 1
-                    print(
-                        f"  [channel-{channel_id}] append_row error: {exc}",
-                        file=sys.stderr,
-                    )
+                errors = 0
+                for row in batch:
+                    try:
+                        channel.append_row(row, str(offset_token))
+                        offset_token += 1
+                    except Exception as exc:
+                        errors += 1
+                        print(
+                            f"  [channel-{channel_id}] append_row error: {exc}",
+                            file=sys.stderr,
+                        )
 
-            STATS.add(len(batch) - errors, errors)
+                STATS.add(len(batch) - errors, errors)
 
-            if sleep_per_batch > 0:
-                _STOP_EVENT.wait(timeout=sleep_per_batch)
+                if sleep_per_batch > 0:
+                    _STOP_EVENT.wait(timeout=sleep_per_batch)
 
-        print(f"  [channel-{channel_id}] closing.")
+            print(f"  [channel-{channel_id}] closing.")
+        finally:
+            with _CHANNELS_LOCK:
+                _ACTIVE_CHANNEL_NAMES.discard(channel.channel_name)
 
 
 # ---------------------------------------------------------------------------
@@ -130,6 +138,33 @@ def stats_printer(interval: float, start_time: float) -> None:
             f"errors: {STATS.total_errors}  |  "
             f"elapsed: {elapsed:>6.0f}s"
         )
+
+
+# ---------------------------------------------------------------------------
+# Latency monitor (runs in its own thread)
+# ---------------------------------------------------------------------------
+
+def latency_monitor(client: Any, interval: float) -> None:
+    """Polls channel statuses and logs Snowflake-reported avg processing latency."""
+    while not _STOP_EVENT.is_set():
+        _STOP_EVENT.wait(timeout=interval)
+        if _STOP_EVENT.is_set():
+            break
+        with _CHANNELS_LOCK:
+            names = list(_ACTIVE_CHANNEL_NAMES)
+        if not names:
+            continue
+        try:
+            statuses = client.get_channel_statuses(names)
+            for name, st in statuses.items():
+                lag = st.server_avg_processing_latency
+                if lag is not None:
+                    print(
+                        f"  [{datetime.now().strftime('%H:%M:%S')}]  "
+                        f"[latency] {name}: {lag.total_seconds() * 1000:.0f} ms avg"
+                    )
+        except Exception as exc:
+            print(f"  [latency] status error: {exc}", file=sys.stderr)
 
 
 # ---------------------------------------------------------------------------
@@ -236,6 +271,14 @@ def main() -> None:
             daemon=True,
         )
         printer.start()
+
+        # Start latency monitor
+        monitor = threading.Thread(
+            target=latency_monitor,
+            args=(client, config.STATS_INTERVAL_SEC),
+            daemon=True,
+        )
+        monitor.start()
 
         # Start channel workers
         workers: list[threading.Thread] = []

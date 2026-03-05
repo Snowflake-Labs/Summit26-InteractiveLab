@@ -25,7 +25,7 @@ PROFILE_JSON_PATH = os.path.join(_PROJECT_ROOT, "profile.json")
 # Streaming tuning
 # ---------------------------------------------------------------------------
 NUM_CHANNELS = 1  # parallel SDK channels → higher throughput
-TARGET_ROWS_PER_SEC = 0  # approx rows/sec across all channels (0 = unlimited)
+TARGET_ROWS_PER_SEC = 1000  # approx rows/sec across all channels (0 = unlimited)
 STATS_INTERVAL_SEC = 5  # how often to print throughput stats to console
 BATCH_SIZE = 25  # rows per append_row loop before a short yield
 

@@ -80,7 +80,7 @@ Use skill `developing-with-streamlit` to create a real-time arcade scores dashbo
  7. **Achievements** - All earned achievements (where ACHIEVEMENT IS NOT NULL) with counts
  8. **Active Cities** - Most active cities in last minute
  9. **Pipeline Health** - Operational metrics page with:
-    - Games played in last hour
-    - Current end-to-end latency in decimal seconds: `DATEDIFF('millisecond', GAME_ENDED_AT, INGEST_AT) / 1000.0` median over last 60 seconds
-    - Latency over last hour as a time-series line chart: median latency per minute bucketed with `DATE_TRUNC('minute', INGEST_AT)`
-    - Rows/sec over last hour: count of rows per minute bucket divided by 60, shown as a time-series line chart
+    - Total games played (all time)
+    - Current data freshness in decimal seconds: `DATEDIFF('millisecond', MAX(GAME_ENDED_AT), CONVERT_TIMEZONE('UTC', CURRENT_TIMESTAMP())::TIMESTAMP_NTZ) / 1000.0` — how many seconds ago was the most recent row committed
+    - Freshness over last hour as a time-series line chart: freshness per minute bucketed with `DATE_TRUNC('minute', GAME_ENDED_AT)`
+    - Rows/sec over last hour: count of rows per minute bucket (filtered by `GAME_ENDED_AT`) divided by 60, shown as a time-series line chart

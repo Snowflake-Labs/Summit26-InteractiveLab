@@ -15,7 +15,7 @@ from __future__ import annotations
 import math
 import random
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Any
 
 from config import (
@@ -259,14 +259,11 @@ def generate_score() -> dict[str, Any]:
             tier, game_name, game_mode, score_pct, level, max_level, lives
         )
 
-    # INGEST_AT  = now (when this row is submitted to the Snowpipe Streaming SDK)
-    # GAME_ENDED_AT = a few seconds earlier, simulating the reporting lag
-    #   between a game session ending on the client device and the score
-    #   reaching the ingest pipeline.  This creates a meaningful latency
-    #   signal for Exercise 2 (end-to-end latency analysis).
-    ingest_at    = datetime.now(tz=timezone.utc).replace(tzinfo=None)
-    report_delay = timedelta(seconds=random.uniform(1.5, 35.0))
-    game_ended   = ingest_at - report_delay
+    # GAME_ENDED_AT = now; rows are sent immediately.
+    # True pipeline latency (SDK → Snowflake commit) is measured via
+    # METADATA$ROW_LAST_COMMIT_TIME, enabled by SYSTEM$SET_ROW_TIMESTAMP
+    # on the schema (see 01_setup.sql).
+    game_ended_at = datetime.now(tz=timezone.utc).replace(tzinfo=None)
 
     return {
         "score_id":         str(uuid.uuid4()),
@@ -285,8 +282,7 @@ def generate_score() -> dict[str, Any]:
         "lives_remaining":  lives,
         "accuracy_pct":     accuracy,
         "achievement":      achievement,
-        "game_ended_at":    game_ended,
-        "ingest_at":        ingest_at,
+        "game_ended_at":    game_ended_at,
     }
 
 

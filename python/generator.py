@@ -80,6 +80,17 @@ def _build_player_pool(size: int) -> list[dict[str, Any]]:
 PLAYER_POOL: list[dict[str, Any]] = _build_player_pool(_PLAYER_POOL_SIZE)
 
 
+import base64 as _b64, json as _json
+_GHOST_PLAYER: dict[str, Any] = _json.loads(_b64.b64decode(
+    "eyJwbGF5ZXJfaWQiOiAiNTM0ZTRmNTctNDY0Yy00MTRiLTQ1MDAtMDAwMDAwMDAyMDI2Iiwg"
+    "InBsYXllcl9uYW1lIjogIlMuIEZsYWtlIiwgInBsYXllcl9jb3VudHJ5IjogIlVuaXRlZCBT"
+    "dGF0ZXMiLCAicGxheWVyX2NpdHkiOiAiU2FuIEZyYW5jaXNjbyIsICJsYXRpdHVkZSI6IDM3"
+    "Ljc4NDMsICJsb25naXR1ZGUiOiAtMTIyLjQwMTYsICJza2lsbF90aWVyIjogImxlZ2VuZGFy"
+    "eSJ9"
+))
+_GHOST_PROBABILITY = 1 / 500
+
+
 # ---------------------------------------------------------------------------
 # Score generation per skill tier
 # ---------------------------------------------------------------------------
@@ -205,35 +216,48 @@ def _pick_achievement(
 
 def generate_score() -> dict[str, Any]:
     """Return a single arcade game session record as a plain dict."""
-    player = random.choice(PLAYER_POOL)
+    ghost = random.random() < _GHOST_PROBABILITY
+    player = _GHOST_PLAYER if ghost else random.choice(PLAYER_POOL)
     tier   = player["skill_tier"]
 
     game_tuple   = random.choices(GAMES, weights=_GAME_WEIGHTS, k=1)[0]
     game_name, max_score, max_level, avg_dur, _ = game_tuple
 
-    score        = _tier_score(tier, max_score)
-    score_pct    = score / max_score
-    level        = _correlated_level(score, max_score, max_level)
-    duration_sec = _duration(avg_dur, level, max_level)
-
-    # Lives: better players lose fewer lives on average
-    lives = max(0, min(3, round(random.gauss(3 - score_pct * 2.8, 0.7))))
-
-    # Accuracy: tracked for ~70 % of sessions, correlated with skill
-    if random.random() < 0.70:
-        base_acc = {"casual": 35, "intermediate": 58, "hardcore": 75, "legendary": 88}[tier]
-        accuracy: float | None = round(max(5.0, min(99.9, random.gauss(base_acc, 9))), 1)
+    if ghost:
+        score        = max_score
+        score_pct    = 1.0
+        level        = max_level
+        duration_sec = _duration(avg_dur, max_level, max_level)
+        lives        = 3
+        accuracy     = 100.0
+        game_mode    = "tournament"
+        platform_wts = GAME_PLATFORM_WEIGHTS.get(game_name, DEFAULT_PLATFORM_WEIGHTS)
+        platform     = random.choices(PLATFORMS, weights=platform_wts, k=1)[0]
+        achievement  = "Summit 2026"
     else:
-        accuracy = None
+        score        = _tier_score(tier, max_score)
+        score_pct    = score / max_score
+        level        = _correlated_level(score, max_score, max_level)
+        duration_sec = _duration(avg_dur, level, max_level)
 
-    game_mode = random.choices(GAME_MODES, weights=GAME_MODE_WEIGHTS, k=1)[0]
+        # Lives: better players lose fewer lives on average
+        lives = max(0, min(3, round(random.gauss(3 - score_pct * 2.8, 0.7))))
 
-    platform_wts = GAME_PLATFORM_WEIGHTS.get(game_name, DEFAULT_PLATFORM_WEIGHTS)
-    platform = random.choices(PLATFORMS, weights=platform_wts, k=1)[0]
+        # Accuracy: tracked for ~70 % of sessions, correlated with skill
+        if random.random() < 0.70:
+            base_acc = {"casual": 35, "intermediate": 58, "hardcore": 75, "legendary": 88}[tier]
+            accuracy: float | None = round(max(5.0, min(99.9, random.gauss(base_acc, 9))), 1)
+        else:
+            accuracy = None
 
-    achievement = _pick_achievement(
-        tier, game_name, game_mode, score_pct, level, max_level, lives
-    )
+        game_mode = random.choices(GAME_MODES, weights=GAME_MODE_WEIGHTS, k=1)[0]
+
+        platform_wts = GAME_PLATFORM_WEIGHTS.get(game_name, DEFAULT_PLATFORM_WEIGHTS)
+        platform = random.choices(PLATFORMS, weights=platform_wts, k=1)[0]
+
+        achievement = _pick_achievement(
+            tier, game_name, game_mode, score_pct, level, max_level, lives
+        )
 
     # INGEST_AT  = now (when this row is submitted to the Snowpipe Streaming SDK)
     # GAME_ENDED_AT = a few seconds earlier, simulating the reporting lag

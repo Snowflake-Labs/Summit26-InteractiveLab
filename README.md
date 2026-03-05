@@ -13,11 +13,10 @@ in real time, materialise them into an **Interactive Table**, and query with an
  Python Generator
  ─────────────────
   Arcade Score Events          Snowpipe Streaming SDK
-  (50 rows/sec)        ──────► StreamingIngestClient
-  20 games                      ├─ Channel 0
-  45 cities                     ├─ Channel 1      ──► ARCADE_SCORES
-  500 players                   ├─ Channel 2          (Interactive Table)
-                                └─ Channel 3          CLUSTER BY (GAME_ENDED_AT)
+  (unlimited rows/sec) ──────► StreamingIngestClient
+  20 games                      └─ Channel 0      ──► ARCADE_SCORES
+  45 cities                                            (Interactive Table)
+  500 players                                          CLUSTER BY (GAME_ENDED_AT)
                                                             │
                                                             ▼
                                                      SUMMIT_INT_WH
@@ -116,15 +115,15 @@ python arcade_streamer.py
 ============================================================
  Summit 2026 – Arcade Scores Snowpipe Streamer
 ============================================================
-  Account   : xy12345
+  Account   : YOUR_ORG-YOUR_ACCOUNT
   Database  : ARCADE_DB.PUBLIC
   Pipe      : ARCADE_SCORES-STREAMING
-  Channels  : 4
-  Target    : 50 rows/sec
+  Channels  : 1
+  Target    : unlimited rows/sec
 ============================================================
 
-  [14:22:05]  rows:      250  |  50.0 rows/sec  |  errors: 0  |  elapsed:    5s
-  [14:22:10]  rows:      500  |  50.0 rows/sec  |  errors: 0  |  elapsed:   10s
+  [14:22:05]  rows:      512  |  512.0 rows/sec  |  errors: 0  |  elapsed:    1s
+  [14:22:06]  rows:    1,024  |  512.0 rows/sec  |  errors: 0  |  elapsed:    2s
 ```
 
 ### 6 — Wait for cache warm-up
@@ -201,7 +200,13 @@ and pre-computed index metadata.
 Use the JMeter load testing tool to simulate 50 concurrent users hitting the
 warehouse. See [Concurrency Testing with JMeter](#concurrency-testing-with-jmeter) below.
 
-### ⚡ Bonus A — Time Travel on an Interactive Table
+### 🥚 Bonus A — Find the ghost player
+
+Someone has been logging perfect scores. Can you find them?
+
+---
+
+### ⚡ Bonus B — Time Travel on an Interactive Table
 
 ```sql
 SELECT COUNT(*) FROM ARCADE_SCORES AT(OFFSET => -300);
@@ -358,11 +363,14 @@ Edit `jmeter/concurrency_test.jmx` to adjust:
 ## Streamer Options
 
 ```bash
-# Default: 50 rows/sec, 4 channels, runs until Ctrl-C
+# Default: 1 channel, unlimited rows/sec, runs until Ctrl-C
 python arcade_streamer.py
 
-# High-throughput demo (200 rows/sec, 8 channels)
-python arcade_streamer.py --rate 200 --channels 8
+# Throttled demo (50 rows/sec)
+python arcade_streamer.py --rate 50
+
+# Multi-channel high-throughput (4 channels, unlimited)
+python arcade_streamer.py --channels 4
 
 # Insert exactly 10,000 rows then stop
 python arcade_streamer.py --rows 10000

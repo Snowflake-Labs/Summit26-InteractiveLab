@@ -246,24 +246,20 @@ USE WAREHOUSE SUMMIT_INT_WH;
 
 
 -- =============================================================================
--- EXERCISE 11  Concurrency demo (k6 load test)
+-- EXERCISE 11  Concurrency demo (JMeter load test)
 --
--- Use the k6 load testing script in k6/concurrency_test.js to simulate
+-- Use the JMeter test plan in jmeter/concurrency_test.jmx to simulate
 -- 50 concurrent users. Compare results between SUMMIT_INT_WH and SUMMIT_TRAD_WH.
 --
--- See README.md for k6 installation and usage instructions.
+-- See README.md for JMeter installation and usage instructions.
 --
--- Quick start:
---   SNOWFLAKE_ACCOUNT=xy12345 \
---   SNOWFLAKE_USER=YOUR_USER \
---   SNOWFLAKE_PRIVATE_KEY_PATH=/path/to/rsa_key.p8 \
---   SNOWFLAKE_WAREHOUSE=SUMMIT_INT_WH \
---   ./k6-snowflake run k6/concurrency_test.js
+-- Quick start (from the jmeter/ directory):
+--   bash run_concurrency_test.sh SUMMIT_INT_WH
 --
--- Then run again with SNOWFLAKE_WAREHOUSE=SUMMIT_TRAD_WH to compare.
+-- Then run again with SUMMIT_TRAD_WH to compare.
 -- =============================================================================
 
--- Sample query used by the k6 test (run manually for reference):
+-- Sample query used by the JMeter test (run manually for reference):
 SELECT
     GAME_NAME,
     COUNT(*)            AS SESSIONS,

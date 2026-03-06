@@ -23,5 +23,5 @@ SELECT
     ||   ' --user '             || CURRENT_USER()
     ||   ' --password '         || CHAR(39) || $PAT_TOKEN || CHAR(39)
     ||   ' --role '             || CURRENT_ROLE()
-    ||   ' --no-interactive'
+    ||   ' --no-interactive --default'
     AS SETUP_COMMAND;

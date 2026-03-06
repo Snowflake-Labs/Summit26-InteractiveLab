@@ -430,7 +430,7 @@ Summit26-InteractiveLab/
 │   ├── 01_setup.sql                 Full Snowflake provisioning (incl. compute pool)
 │   ├── 02_service_auth.sh           Generates RSA key pair + outputs ALTER USER SQL
 │   ├── 03_lab_queries.sql           11 exercises + bonus queries
-│   ├── 04_generate_pat.sql          Generate PAT + snow connection add command
+│   ├── 04_generate_pat.sql          Generate PAT for Cortex CLI + snow connection add command
 │   └── 05_cleanup.sql               Teardown (dashboard, pool, warehouses, DB, users)
 ├── python/
 │   ├── config.py                    Game catalogue, cities, skill tiers

@@ -34,7 +34,9 @@ Verify:
 cortex --version
 ```
 
-### 3. Generate a PAT and register the snow CLI connection
+### 3. Generate a PAT for the Cortex CLI and register the snow CLI connection
+
+The Cortex CLI uses `snow` under the hood to deploy the Streamlit app. `snow` requires a **Programmatic Access Token (PAT)** — this is only needed for Cortex CLI deployment and is separate from the RSA key pair used by the Python streamer.
 
 Open **`sql/04_generate_pat.sql`** in Snowsight and run it as the user who will deploy the dashboard.
 

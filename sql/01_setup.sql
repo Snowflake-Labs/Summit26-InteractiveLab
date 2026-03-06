@@ -81,7 +81,7 @@ USE SCHEMA PUBLIC;
 --  CLUSTER BY (GAME_ENDED_AT)
 --    Aligns with the WHERE GAME_ENDED_AT >= DATEADD(...) predicates in
 --    every lab query.  The Interactive Warehouse skips irrelevant
---    micro-partitions and returns results in milliseconds.
+--    micro-partitions and returns results in under a second.
 --
 --  NOTE: No TARGET_LAG or WAREHOUSE clause needed here – those are only
 --        required when refreshing from another table.

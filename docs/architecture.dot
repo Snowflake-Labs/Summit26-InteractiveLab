@@ -1,0 +1,105 @@
+digraph architecture {
+    graph [
+        rankdir     = LR
+        bgcolor     = "#FFFFFF"
+        fontname    = "Helvetica Neue, Helvetica, Arial, sans-serif"
+        fontsize    = 13
+        pad         = 0.6
+        splines     = spline
+        nodesep     = 0.7
+        ranksep     = 1.0
+    ]
+    node [
+        fontname    = "Helvetica Neue, Helvetica, Arial, sans-serif"
+        fontsize    = 12
+        style       = "filled,rounded"
+        shape       = box
+        penwidth    = 1.5
+        margin      = "0.25,0.18"
+    ]
+    edge [
+        fontname    = "Helvetica Neue, Helvetica, Arial, sans-serif"
+        fontsize    = 11
+        penwidth    = 2.0
+        color       = "#555555"
+    ]
+
+    // ── Python side ─────────────────────────────────────────────
+    subgraph cluster_python {
+        label       = "Python Process (Codespace / local)"
+        labeljust   = l
+        style       = "rounded,filled"
+        color       = "#DDDDDD"
+        fillcolor   = "#F5F5F5"
+        fontsize    = 12
+
+        generator [
+            label     = "generator.py\n20 games · 45 cities\n500 players\nunlimited rows/sec"
+            fillcolor = "#EDF2FF"
+            color     = "#4361EE"
+            fontcolor = "#1A1A2E"
+        ]
+
+        sdk [
+            label     = "Snowpipe Streaming SDK\nStreamingIngestClient\nChannel 0"
+            fillcolor = "#E0F0FF"
+            color     = "#0066CC"
+            fontcolor = "#1A1A2E"
+        ]
+
+        generator -> sdk [label = "row dicts", color = "#4361EE"]
+    }
+
+    // ── Snowflake side ───────────────────────────────────────────
+    subgraph cluster_snowflake {
+        label       = "Snowflake (ARCADE_DB.PUBLIC)"
+        labeljust   = l
+        style       = "rounded,filled"
+        color       = "#DDDDDD"
+        fillcolor   = "#F0FFF4"
+        fontsize    = 12
+
+        table [
+            label     = "ARCADE_SCORES\n(Interactive Table)\nCLUSTER BY (GAME_ENDED_AT)"
+            fillcolor = "#C6F6D5"
+            color     = "#276749"
+            fontcolor = "#1A2E1A"
+        ]
+
+        wh [
+            label     = "SUMMIT_INT_WH\n(Interactive Warehouse XS)\nAlways-on · pre-computed indexes\nWarm SSD cache"
+            fillcolor = "#FEF9C3"
+            color     = "#B45309"
+            fontcolor = "#1A1A00"
+        ]
+
+        table -> wh [
+            label     = "sub-second queries"
+            color     = "#276749"
+            style     = dashed
+        ]
+    }
+
+    // ── Cross-boundary edge ──────────────────────────────────────
+    sdk -> table [
+        label     = "Snowpipe Streaming\nchannel API\n(no files · no COPY INTO)"
+        color     = "#0066CC"
+        fontcolor = "#0066CC"
+        fontsize  = 11
+    ]
+
+    // ── Query client ─────────────────────────────────────────────
+    snowsight [
+        label     = "Snowsight / SQL Client\nlab queries"
+        fillcolor = "#FFF0F0"
+        color     = "#CC0000"
+        fontcolor = "#1A0000"
+    ]
+
+    wh -> snowsight [
+        label     = "results"
+        color     = "#B45309"
+        style     = dashed
+        dir       = back
+    ]
+}

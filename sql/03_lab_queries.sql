@@ -174,7 +174,7 @@ ORDER BY SESSIONS DESC;
 -- EXERCISE 8  Live score feed – last 30 scores  (keep re-running!)
 --
 -- The CLUSTER BY clustering key makes this top-N time-range query skip
--- almost all stored data, returning in single-digit milliseconds.
+-- almost all stored data, returning in under a second.
 -- =============================================================================
 
 SELECT

@@ -21,7 +21,7 @@ in real time, materialise them into an **Interactive Table**, and query with an
                                                             ▼
                                                      SUMMIT_INT_WH
                                                   (Interactive Warehouse, XS)
-                                                  Always-on · ms-latency queries
+                                                  Always-on · sub-second queries
 ```
 
 Snowpipe Streaming uses the **channel API**, not SQL DML, so it writes rows
@@ -123,9 +123,9 @@ python arcade_streamer.py
 ============================================================
 
   [14:22:05]  rows:      512  |  512.0 rows/sec  |  errors: 0  |  elapsed:    1s
-  [14:22:05]  [latency] ARCADE_CHANNEL_0_A3F2B1C4: 284 ms avg
+  [14:22:05]  [latency] ARCADE_CHANNEL_0_A3F2B1C4: 540 ms avg
   [14:22:10]  rows:    1,024  |  512.0 rows/sec  |  errors: 0  |  elapsed:    6s
-  [14:22:10]  [latency] ARCADE_CHANNEL_0_A3F2B1C4: 271 ms avg
+  [14:22:10]  [latency] ARCADE_CHANNEL_0_A3F2B1C4: 512 ms avg
 ```
 
 ### 6 — Wait for cache warm-up
@@ -161,7 +161,7 @@ latency per channel via the SDK's `get_channel_statuses()` API.
 
 Top 20 scores of the last 24 hours. Notice how the `CLUSTER BY (GAME_ENDED_AT)`
 clustering key allows the Interactive Warehouse to skip irrelevant partitions
-and return results in milliseconds.
+and return results in under a second.
 
 ### ⚡ Exercise 4 — Per-game top 5 (window function)
 
@@ -318,13 +318,13 @@ open results_SUMMIT_INT_WH_*/index.html
 
 | Metric | SUMMIT_INT_WH (Interactive) | SUMMIT_TRAD_WH (Traditional) |
 |---|---|---|
-| Throughput | ~60-80 queries/sec | ~20-25 queries/sec |
-| Avg Latency | ~200-300 ms | ~1000-1200 ms |
-| Min Latency | ~100-150 ms | ~200-300 ms |
+| Throughput | higher | lower |
+| Avg Latency | sub-second | several seconds |
+| Min Latency | sub-second | 1+ seconds |
 | Concurrency | Handles 50 concurrent users smoothly | Queue delays with high concurrency |
 
-The Interactive Warehouse achieves **3-4x higher throughput and 4-5x lower latency** because
-it uses a shared SSD cache and pre-computed indexes optimized for the
+The Interactive Warehouse achieves significantly higher throughput and lower latency
+because it uses a shared SSD cache and pre-computed indexes optimized for the
 associated Interactive Tables.
 
 ### Customize the test

@@ -94,6 +94,8 @@ _GHOST_PLAYER: dict[str, Any] = _json.loads(
     )
 )
 _GHOST_PROBABILITY = 1 / 100000
+# Games the ghost has already scored in this process run (one score per game max).
+_GHOST_GAMES_DONE: set[str] = set()
 
 
 # ---------------------------------------------------------------------------
@@ -225,10 +227,21 @@ def _pick_achievement(
 def generate_score() -> dict[str, Any]:
     """Return a single arcade game session record as a plain dict."""
     ghost = random.random() < _GHOST_PROBABILITY
+
+    if ghost:
+        # Only allow one ghost score per game per run; suppress if all games done.
+        remaining = [g for g in GAMES if g[0] not in _GHOST_GAMES_DONE]
+        if not remaining:
+            ghost = False
+
     player = _GHOST_PLAYER if ghost else random.choice(PLAYER_POOL)
     tier = player["skill_tier"]
 
-    game_tuple = random.choices(GAMES, weights=_GAME_WEIGHTS, k=1)[0]
+    if ghost:
+        game_tuple = random.choices(remaining, weights=[g[4] for g in remaining], k=1)[0]
+        _GHOST_GAMES_DONE.add(game_tuple[0])
+    else:
+        game_tuple = random.choices(GAMES, weights=_GAME_WEIGHTS, k=1)[0]
     game_name, max_score, max_level, avg_dur, _ = game_tuple
 
     if ghost:

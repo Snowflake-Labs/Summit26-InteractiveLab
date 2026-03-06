@@ -2,7 +2,6 @@
 profile.json
 rsa_key.p8
 rsa_key.pub
-snow_pat.txt
 *.p8
 *.pem
 

@@ -97,6 +97,10 @@ _GHOST_PROBABILITY = 1 / 100000
 # Games the ghost has already scored in this process run (one score per game max).
 _GHOST_GAMES_DONE: set[str] = set()
 
+# NULL in NOT NULL columns (SCORE, GAME_ENDED_AT) ~1 / 10_000 rows — rejected to ERROR_TABLE
+# when ARCADE_SCORES has ERROR_LOGGING = TRUE (Snowpipe Streaming high-performance).
+_INVALID_NOT_NULL_ROW_PROBABILITY = 1 / 10_000
+
 
 # ---------------------------------------------------------------------------
 # Score generation per skill tier
@@ -225,7 +229,11 @@ def _pick_achievement(
 
 
 def generate_score() -> dict[str, Any]:
-    """Return a single arcade game session record as a plain dict."""
+    """Return a single arcade game session record as a plain dict.
+
+    With probability 1/10_000, ``score`` and ``game_ended_at`` are left NULL so the
+    row fails NOT NULL checks and is routed to the table's error log (when enabled).
+    """
     ghost = random.random() < _GHOST_PROBABILITY
 
     if ghost:
@@ -293,7 +301,7 @@ def generate_score() -> dict[str, Any]:
     # on the schema (see 01_setup.sql).
     game_ended_at = datetime.now(tz=timezone.utc).replace(tzinfo=None)
 
-    return {
+    row: dict[str, Any] = {
         "score_id": str(uuid.uuid4()),
         "player_id": player["player_id"],
         "player_name": player["player_name"],
@@ -312,6 +320,10 @@ def generate_score() -> dict[str, Any]:
         "achievement": achievement,
         "game_ended_at": game_ended_at,
     }
+    if random.random() < _INVALID_NOT_NULL_ROW_PROBABILITY:
+        row["score"] = None
+        row["game_ended_at"] = None
+    return row
 
 
 def generate_batch(n: int) -> list[dict[str, Any]]:
@@ -369,7 +381,8 @@ if __name__ == "__main__":
         [
             r["score"]
             for r in batch
-            if next(p for p in PLAYER_POOL if p["player_id"] == r["player_id"])[
+            if r["score"] is not None
+            and next(p for p in PLAYER_POOL if p["player_id"] == r["player_id"])[
                 "skill_tier"
             ]
             == "legendary"
@@ -380,7 +393,8 @@ if __name__ == "__main__":
         [
             r["score"]
             for r in batch
-            if next(p for p in PLAYER_POOL if p["player_id"] == r["player_id"])[
+            if r["score"] is not None
+            and next(p for p in PLAYER_POOL if p["player_id"] == r["player_id"])[
                 "skill_tier"
             ]
             == "casual"

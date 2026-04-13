@@ -108,6 +108,11 @@ CREATE OR REPLACE INTERACTIVE TABLE ARCADE_DB.PUBLIC.ARCADE_SCORES (
     CLUSTER BY (GAME_ENDED_AT)
     COMMENT = 'Interactive Table – arcade scores, populated via Snowpipe Streaming';
 
+-- DML / Snowpipe Streaming error logging: invalid rows (e.g. NULL in NOT NULL columns)
+-- are written to the logical error table; query with ERROR_TABLE(ARCADE_SCORES).
+-- See https://docs.snowflake.com/en/user-guide/snowpipe-streaming/snowpipe-streaming-error-tables
+ALTER TABLE ARCADE_DB.PUBLIC.ARCADE_SCORES SET ERROR_LOGGING = TRUE;
+
 
 -- ---------------------------------------------------------------------------
 -- Step 4: Interactive Warehouse  (the query engine)

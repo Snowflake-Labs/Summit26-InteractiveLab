@@ -87,23 +87,23 @@ USE SCHEMA PUBLIC;
 --        required when refreshing from another table.
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE INTERACTIVE TABLE ARCADE_DB.PUBLIC.ARCADE_SCORES (
-    SCORE_ID          VARCHAR(36),
-    PLAYER_ID         VARCHAR(36),
-    PLAYER_NAME       VARCHAR(64),
-    PLAYER_COUNTRY    VARCHAR(64),
-    PLAYER_CITY       VARCHAR(64),
-    LATITUDE          FLOAT,
-    LONGITUDE         FLOAT,
-    GAME_NAME         VARCHAR(64),
-    GAME_MODE         VARCHAR(32),
-    PLATFORM          VARCHAR(32),
-    SCORE             NUMBER(12, 0),
-    LEVEL_REACHED     NUMBER(4, 0),
-    DURATION_SECONDS  NUMBER(6, 0),
-    LIVES_REMAINING   NUMBER(2, 0),
+    SCORE_ID          VARCHAR(36) NOT NULL,
+    PLAYER_ID         VARCHAR(36) NOT NULL,
+    PLAYER_NAME       VARCHAR(64) NOT NULL,
+    PLAYER_COUNTRY    VARCHAR(64) NOT NULL,
+    PLAYER_CITY       VARCHAR(64) NOT NULL,
+    LATITUDE          FLOAT NOT NULL,
+    LONGITUDE         FLOAT NOT NULL,
+    GAME_NAME         VARCHAR(64) NOT NULL,
+    GAME_MODE         VARCHAR(32) NOT NULL,
+    PLATFORM          VARCHAR(32) NOT NULL,
+    SCORE             NUMBER(12, 0) NOT NULL,
+    LEVEL_REACHED     NUMBER(4, 0) NOT NULL,
+    DURATION_SECONDS  NUMBER(6, 0) NOT NULL,
+    LIVES_REMAINING   NUMBER(2, 0) NOT NULL,
     ACCURACY_PCT      FLOAT,
     ACHIEVEMENT       VARCHAR(64),
-    GAME_ENDED_AT     TIMESTAMP_NTZ
+    GAME_ENDED_AT     TIMESTAMP_NTZ NOT NULL
 )
     CLUSTER BY (GAME_ENDED_AT)
     COMMENT = 'Interactive Table – arcade scores, populated via Snowpipe Streaming';

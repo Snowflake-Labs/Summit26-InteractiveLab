@@ -17,6 +17,7 @@ Options:
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 import threading
@@ -32,6 +33,19 @@ import config
 from generator import generate_batch
 
 # SDK imported lazily inside main() so --dry-run works without the package installed.
+
+
+def _account_for_banner(profile_path: str) -> str:
+    """Snowflake account label for startup banner (SDK uses profile_json, not config.SNOWFLAKE_ACCOUNT)."""
+    try:
+        with open(profile_path, encoding="utf-8") as f:
+            data = json.load(f)
+        acc = data.get("account")
+        if isinstance(acc, str) and acc.strip():
+            return acc.strip()
+    except (OSError, json.JSONDecodeError, TypeError):
+        pass
+    return config.SNOWFLAKE_ACCOUNT
 
 
 # ---------------------------------------------------------------------------
@@ -244,7 +258,7 @@ def main() -> None:
     print("=" * 60)
     print(" Summit 2026 – Arcade Scores Snowpipe Streamer")
     print("=" * 60)
-    print(f"  Account   : {config.SNOWFLAKE_ACCOUNT}")
+    print(f"  Account   : {_account_for_banner(args.profile)}")
     print(f"  Database  : {config.SNOWFLAKE_DATABASE}.{config.SNOWFLAKE_SCHEMA}")
     print(f"  Pipe      : {config.SNOWFLAKE_PIPE}")
     print(f"  Channels  : {num_channels}")

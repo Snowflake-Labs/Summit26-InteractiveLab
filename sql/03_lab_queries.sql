@@ -311,3 +311,49 @@ SHOW INTERACTIVE TABLES IN SCHEMA ARCADE_DB.PUBLIC;
 
 -- Clustering depth (lower = better-clustered for time-range queries)
 SELECT SYSTEM$CLUSTERING_INFORMATION('ARCADE_DB.PUBLIC.ARCADE_SCORES', '(GAME_ENDED_AT)');
+
+
+-- =============================================================================
+-- BONUS D  Find the Ghost Sessions
+--
+-- The generator injects a few "perfect game" rows from a single synthetic
+-- player; they are the only rows that earn the lab-specific badge Summit 2026
+-- (see python/generator.py).  A plain GROUP BY player therefore shows only one
+-- name — the interesting part is the *trail* of individual sessions.
+--
+-- Keep a time predicate so the Interactive Warehouse stays within its timeout.
+-- Widen the window (or drop the filter on small tables) if you need more history.
+-- Ghost injection is ~1 / 100k rows — leave the streamer running if counts are 0.
+-- =============================================================================
+
+USE WAREHOUSE SUMMIT_INT_WH;
+USE DATABASE  ARCADE_DB;
+USE SCHEMA    PUBLIC;
+
+-- D1 — Rarest achievements in the window (explore the tail before naming the badge)
+SELECT
+    ACHIEVEMENT,
+    COUNT(*) AS SESSIONS_WITH_BADGE
+FROM ARCADE_SCORES
+WHERE ACHIEVEMENT IS NOT NULL
+  AND GAME_ENDED_AT >= DATEADD('hour', -24, CURRENT_TIMESTAMP())
+GROUP BY ACHIEVEMENT
+ORDER BY SESSIONS_WITH_BADGE ASC, ACHIEVEMENT
+LIMIT 25;
+
+-- D2 — Every ghost session in the window (multiple rows: same player, different games / times)
+SELECT
+    GAME_ENDED_AT,
+    PLAYER_NAME,
+    PLAYER_ID,
+    PLAYER_CITY,
+    GAME_NAME,
+    SCORE,
+    LEVEL_REACHED,
+    ACCURACY_PCT,
+    GAME_MODE,
+    ACHIEVEMENT
+FROM ARCADE_SCORES
+WHERE ACHIEVEMENT = 'Summit 2026'
+  AND GAME_ENDED_AT >= DATEADD('hour', -24, CURRENT_TIMESTAMP())
+ORDER BY GAME_ENDED_AT DESC;

@@ -6,17 +6,23 @@
 -- The PAT token is shown ONCE — it cannot be retrieved after this statement.
 -- =============================================================================
 
-    
-ALTER USER
-    ADD PROGRAMMATIC ACCESS TOKEN SNOW_CLI_PAT
-    COMMENT = 'snow CLI connection token';
-
 CREATE OR ALTER AUTHENTICATION POLICY pat_bypass_policy
   PAT_POLICY = ( NETWORK_POLICY_EVALUATION = ENFORCED_NOT_REQUIRED );
+
 set uu = 'ALTER USER ' || CURRENT_USER() || ' UNSET AUTHENTICATION POLICY';
 EXECUTE IMMEDIATE $uu;
 set nu = 'ALTER USER ' || CURRENT_USER() || ' SET AUTHENTICATION POLICY pat_bypass_policy';
 EXECUTE IMMEDIATE $nu;
+
+BEGIN
+    ALTER USER REMOVE PROGRAMMATIC ACCESS TOKEN SNOW_CLI_PAT;
+EXCEPTION
+    WHEN OTHER THEN NULL;
+END;
+
+ALTER USER
+    ADD PROGRAMMATIC ACCESS TOKEN SNOW_CLI_PAT
+    COMMENT = 'snow CLI connection token';
 
 -- Capture the token from the result above.
 SET PAT_TOKEN = (SELECT "token_secret" FROM TABLE(RESULT_SCAN(LAST_QUERY_ID())));

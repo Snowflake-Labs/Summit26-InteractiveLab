@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# Generates an RSA key pair (if not already present) and outputs the
-# ALTER USER statement needed to register the public key for
-# ARCADE_STREAMING_USER.
+# Generates an RSA key pair (if not already present) and prints a Snowflake
+# script that registers the public key for ARCADE_STREAMING_USER and emits
+# profile JSON with account and URL filled from the session.
 #
 # Usage (from project root):
 #   bash sql/02_service_auth.sh
 #
-# Then paste the printed SQL into Snowsight and run it as ACCOUNTADMIN.
+# Paste the printed SQL into Snowsight and run it as ACCOUNTADMIN.
+# After it runs, copy the profile_json cell into profile.json in the project root.
 
 set -euo pipefail
 
@@ -22,20 +23,30 @@ fi
 
 PUBK=$(grep -v 'KEY-' "$PUBLIC_KEY" | tr -d '\n')
 PRIVATE_KEY_FULL=$(cd "$(dirname "$PRIVATE_KEY")" && pwd)/$(basename "$PRIVATE_KEY")
+# Escape single quotes for embedding in a SQL string literal
+PRIVATE_KEY_SQL_ESC="${PRIVATE_KEY_FULL//\'/\'\'}"
 
 cat <<SQL
 -- Run as ACCOUNTADMIN in Snowsight
 ALTER USER ARCADE_STREAMING_USER SET RSA_PUBLIC_KEY='${PUBK}';
-SQL
 
-echo ""
-echo "-- Save this as profile.json in the project root:"
-cat <<JSON
-{
-    "user":             "ARCADE_STREAMING_USER",
-    "account":          "YOUR_ACCOUNT_IDENTIFIER",
-    "url":              "https://YOUR_ACCOUNT_IDENTIFIER.snowflakecomputing.com:443",
-    "private_key_file": "${PRIVATE_KEY_FULL}",
-    "role":             "ARCADE_STREAMING_ROLE"
-}
-JSON
+-- Copy the profile_json value into profile.json (project root).
+WITH account_ctx AS (
+  SELECT IFF(
+    CURRENT_ORGANIZATION_NAME() IS NOT NULL
+    AND TRIM(CURRENT_ORGANIZATION_NAME()) <> '',
+    CURRENT_ORGANIZATION_NAME() || '-' || CURRENT_ACCOUNT(),
+    CURRENT_ACCOUNT()
+  ) AS account_identifier
+)
+SELECT TO_JSON(
+  OBJECT_CONSTRUCT(
+    'user',             'ARCADE_STREAMING_USER',
+    'account',          a.account_identifier,
+    'url',              'https://' || a.account_identifier || '.snowflakecomputing.com:443',
+    'private_key_file', '${PRIVATE_KEY_SQL_ESC}',
+    'role',             'ARCADE_STREAMING_ROLE'
+  )
+) AS profile_json
+FROM account_ctx a;
+SQL

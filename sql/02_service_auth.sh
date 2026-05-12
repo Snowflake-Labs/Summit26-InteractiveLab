@@ -28,6 +28,7 @@ PRIVATE_KEY_SQL_ESC="${PRIVATE_KEY_FULL//\'/\'\'}"
 
 cat <<SQL
 -- Run as ACCOUNTADMIN in Snowsight
+USE ROLE ACCOUNTADMIN;
 ALTER USER ARCADE_STREAMING_USER SET RSA_PUBLIC_KEY='${PUBK}';
 
 -- Copy the profile_json value into profile.json (project root).

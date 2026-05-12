@@ -6,6 +6,10 @@
 -- The PAT token is shown ONCE — it cannot be retrieved after this statement.
 -- =============================================================================
 
+USE ROLE ACCOUNTADMIN;
+USE DATABASE ARCADE_DB;
+USE SCHEMA PUBLIC;
+
 CREATE OR ALTER AUTHENTICATION POLICY pat_bypass_policy
   PAT_POLICY = ( NETWORK_POLICY_EVALUATION = ENFORCED_NOT_REQUIRED );
 

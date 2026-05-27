@@ -6,6 +6,7 @@
 -- The PAT token is shown ONCE — it cannot be retrieved after this statement.
 -- =============================================================================
 
+USE WAREHOUSE SUMMIT_TRAD_WH;
 USE ROLE ACCOUNTADMIN;
 USE DATABASE ARCADE_DB;
 USE SCHEMA PUBLIC;

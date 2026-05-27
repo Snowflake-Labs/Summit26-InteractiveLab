@@ -26,7 +26,7 @@ PRIVATE_KEY_FULL=$(cd "$(dirname "$PRIVATE_KEY")" && pwd)/$(basename "$PRIVATE_K
 # Escape single quotes for embedding in a SQL string literal
 PRIVATE_KEY_SQL_ESC="${PRIVATE_KEY_FULL//\'/\'\'}"
 
-IP=$(curl ifconfig.me)
+IP=$(curl -s ifconfig.me)
 
 cat <<SQL
 -- Run as ACCOUNTADMIN in Snowsight

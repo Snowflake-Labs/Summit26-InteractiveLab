@@ -275,14 +275,14 @@ ORDER BY HIGH_SCORE DESC;
 -- BONUS A  Time Travel on an Interactive Table
 -- =============================================================================
 
--- Row count 5 minutes ago
+-- Row count last minute
 SELECT COUNT(*) AS ROWS_5_MIN_AGO
-FROM ARCADE_SCORES AT(OFFSET => -300);
+FROM ARCADE_SCORES AT(OFFSET => -60);
 
--- How many rows were generated in the last 5 minutes?
+-- How many rows were generated in the last minute?
 SELECT COUNT(*) AS NEW_ROWS_LAST_5_MIN
 FROM ARCADE_SCORES
-WHERE GAME_ENDED_AT >= DATEADD('minute', -5, CURRENT_TIMESTAMP());
+WHERE GAME_ENDED_AT >= DATEADD('minute', -1, CURRENT_TIMESTAMP());
 
 
 -- =============================================================================

@@ -16,7 +16,8 @@
 USE WAREHOUSE SUMMIT_INT_WH;
 USE DATABASE  ARCADE_DB;
 USE SCHEMA    PUBLIC;
-
+-- NOTE: Github Codespaces uses UTC timezone by default. Configure session to match the data source.
+ALTER SESSION SET TIMEZONE = "UTC";
 
 -- =============================================================================
 -- EXERCISE 1  How fresh is the data?  (run repeatedly while the streamer runs)

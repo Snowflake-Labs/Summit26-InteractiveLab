@@ -16,8 +16,6 @@
 USE WAREHOUSE SUMMIT_INT_WH;
 USE DATABASE  ARCADE_DB;
 USE SCHEMA    PUBLIC;
--- NOTE: Github Codespaces uses UTC timezone by default. Configure session to match the data source.
-ALTER SESSION SET TIMEZONE = "UTC";
 
 -- =============================================================================
 -- EXERCISE 1  How fresh is the data?  (run repeatedly while the streamer runs)
@@ -28,24 +26,27 @@ SELECT COUNT(*) AS TOTAL_SCORES FROM ARCADE_SCORES;
 
 -- 1b. Rows generated in the last 60 seconds
 SELECT
-    COUNT(*)                                AS ROWS_LAST_60_SEC,
-    ROUND(COUNT(*) / 60.0, 1)              AS ROWS_PER_SECOND,
-    COUNT(DISTINCT PLAYER_ID)              AS ACTIVE_PLAYERS
+    COUNT(*)                   AS ROWS_LAST_60_SEC,
+    ROUND(COUNT(*) / 60.0, 1) AS ROWS_PER_SECOND,
+    COUNT(DISTINCT PLAYER_ID)  AS ACTIVE_PLAYERS
 FROM ARCADE_SCORES
-WHERE GAME_ENDED_AT >= DATEADD('second', -60, CURRENT_TIMESTAMP());
+WHERE GAME_ENDED_AT >= DATEADD('second', -60,
+          CONVERT_TIMEZONE('UTC', CURRENT_TIMESTAMP())::TIMESTAMP_NTZ);
+
+-- NOTE: All timestamp filters are converted to UTC, which is the expected timezone of GAME_ENDED_AT 
 
 -- 1c. Ingest throughput by 10-second bucket (last 3 minutes)
 SELECT
     DATEADD('second',
         FLOOR(DATEDIFF('second', '2000-01-01'::TIMESTAMP_NTZ, GAME_ENDED_AT) / 10) * 10,
-        '2000-01-01'::TIMESTAMP_NTZ)        AS TIME_BUCKET,
-    COUNT(*)                                AS SCORES
+        '2000-01-01'::TIMESTAMP_NTZ)   AS TIME_BUCKET,
+    COUNT(*)                           AS SCORES
 FROM ARCADE_SCORES
-WHERE GAME_ENDED_AT >= DATEADD('minute', -3, CURRENT_TIMESTAMP())
+WHERE GAME_ENDED_AT >= DATEADD('minute', -3,
+          CONVERT_TIMEZONE('UTC', CURRENT_TIMESTAMP())::TIMESTAMP_NTZ)
 GROUP BY TIME_BUCKET
 ORDER BY TIME_BUCKET DESC
 LIMIT 18;
-
 
 -- =============================================================================
 -- EXERCISE 2  Data freshness  (how recent is the latest row?)
@@ -68,7 +69,6 @@ FROM ARCADE_SCORES
 WHERE GAME_ENDED_AT >= DATEADD('minute', -5,
           CONVERT_TIMEZONE('UTC', CURRENT_TIMESTAMP())::TIMESTAMP_NTZ);
 
-
 -- =============================================================================
 -- EXERCISE 3  Global leaderboard  (last 24 hours)
 --
@@ -77,21 +77,21 @@ WHERE GAME_ENDED_AT >= DATEADD('minute', -5,
 -- =============================================================================
 
 SELECT
-    RANK() OVER (ORDER BY SCORE DESC)       AS RANK,
+    RANK() OVER (ORDER BY SCORE DESC)  AS RANK,
     PLAYER_NAME,
     PLAYER_COUNTRY,
     PLAYER_CITY,
     GAME_NAME,
-    TO_CHAR(SCORE, '999,999,999')           AS SCORE,
+    TO_CHAR(SCORE, '999,999,999')      AS SCORE,
     LEVEL_REACHED,
     PLATFORM,
-    COALESCE(ACHIEVEMENT, '—')              AS ACHIEVEMENT,
+    COALESCE(ACHIEVEMENT, '—')         AS ACHIEVEMENT,
     GAME_ENDED_AT
 FROM ARCADE_SCORES
-WHERE GAME_ENDED_AT >= DATEADD('hour', -24, CURRENT_TIMESTAMP())
+WHERE GAME_ENDED_AT >= DATEADD('hour', -24,
+          CONVERT_TIMEZONE('UTC', CURRENT_TIMESTAMP())::TIMESTAMP_NTZ)
 ORDER BY SCORE DESC
 LIMIT 20;
-
 
 -- =============================================================================
 -- EXERCISE 4  Per-game leaderboard – top 5 per game  (last hour)
@@ -101,19 +101,19 @@ SELECT
     GAME_NAME,
     ROW_NUMBER() OVER (
         PARTITION BY GAME_NAME ORDER BY SCORE DESC
-    )                                       AS POSITION,
+    )                                  AS POSITION,
     PLAYER_NAME,
     PLAYER_COUNTRY,
-    TO_CHAR(SCORE, '999,999,999')           AS SCORE,
+    TO_CHAR(SCORE, '999,999,999')      AS SCORE,
     LEVEL_REACHED,
     GAME_MODE
 FROM ARCADE_SCORES
-WHERE GAME_ENDED_AT >= DATEADD('hour', -1, CURRENT_TIMESTAMP())
+WHERE GAME_ENDED_AT >= DATEADD('hour', -1,
+          CONVERT_TIMEZONE('UTC', CURRENT_TIMESTAMP())::TIMESTAMP_NTZ)
 QUALIFY ROW_NUMBER() OVER (
     PARTITION BY GAME_NAME ORDER BY SCORE DESC
 ) <= 5
 ORDER BY GAME_NAME, POSITION;
-
 
 -- =============================================================================
 -- EXERCISE 5  Country heat map  (last hour)
@@ -124,16 +124,16 @@ ORDER BY GAME_NAME, POSITION;
 
 SELECT
     PLAYER_COUNTRY,
-    COUNT(*)                                AS GAMES_PLAYED,
-    ROUND(AVG(SCORE))                       AS AVG_SCORE,
-    MAX(SCORE)                              AS HIGH_SCORE,
-    COUNT(DISTINCT PLAYER_ID)              AS UNIQUE_PLAYERS
+    COUNT(*)                   AS GAMES_PLAYED,
+    ROUND(AVG(SCORE))          AS AVG_SCORE,
+    MAX(SCORE)                 AS HIGH_SCORE,
+    COUNT(DISTINCT PLAYER_ID)  AS UNIQUE_PLAYERS
 FROM ARCADE_SCORES
-WHERE GAME_ENDED_AT >= DATEADD('hour', -1, CURRENT_TIMESTAMP())
+WHERE GAME_ENDED_AT >= DATEADD('hour', -1,
+          CONVERT_TIMEZONE('UTC', CURRENT_TIMESTAMP())::TIMESTAMP_NTZ)
 GROUP BY PLAYER_COUNTRY
 ORDER BY GAMES_PLAYED DESC
 LIMIT 20;
-
 
 -- =============================================================================
 -- EXERCISE 6  Game popularity and performance stats  (last hour)
@@ -150,10 +150,10 @@ SELECT
     ROUND(AVG(LEVEL_REACHED), 1)                    AS AVG_LEVEL,
     ROUND(AVG(DURATION_SECONDS) / 60.0, 1)          AS AVG_GAME_MIN
 FROM ARCADE_SCORES
-WHERE GAME_ENDED_AT >= DATEADD('hour', -1, CURRENT_TIMESTAMP())
+WHERE GAME_ENDED_AT >= DATEADD('hour', -1,
+          CONVERT_TIMEZONE('UTC', CURRENT_TIMESTAMP())::TIMESTAMP_NTZ)
 GROUP BY GAME_NAME
 ORDER BY SESSIONS DESC;
-
 
 -- =============================================================================
 -- EXERCISE 7  Platform breakdown  (last hour)
@@ -161,15 +161,15 @@ ORDER BY SESSIONS DESC;
 
 SELECT
     PLATFORM,
-    COUNT(*)                                AS SESSIONS,
-    ROUND(AVG(SCORE))                       AS AVG_SCORE,
-    ROUND(AVG(ACCURACY_PCT), 1)             AS AVG_ACCURACY_PCT,
-    COUNT(DISTINCT PLAYER_ID)              AS UNIQUE_PLAYERS
+    COUNT(*)                   AS SESSIONS,
+    ROUND(AVG(SCORE))          AS AVG_SCORE,
+    ROUND(AVG(ACCURACY_PCT), 1) AS AVG_ACCURACY_PCT,
+    COUNT(DISTINCT PLAYER_ID)  AS UNIQUE_PLAYERS
 FROM ARCADE_SCORES
-WHERE GAME_ENDED_AT >= DATEADD('hour', -1, CURRENT_TIMESTAMP())
+WHERE GAME_ENDED_AT >= DATEADD('hour', -1,
+          CONVERT_TIMEZONE('UTC', CURRENT_TIMESTAMP())::TIMESTAMP_NTZ)
 GROUP BY PLATFORM
 ORDER BY SESSIONS DESC;
-
 
 -- =============================================================================
 -- EXERCISE 8  Live score feed – last 30 scores  (keep re-running!)
@@ -183,16 +183,16 @@ SELECT
     PLAYER_CITY,
     PLAYER_COUNTRY,
     GAME_NAME,
-    TO_CHAR(SCORE, '999,999,999')           AS SCORE,
+    TO_CHAR(SCORE, '999,999,999')  AS SCORE,
     LEVEL_REACHED,
     PLATFORM,
-    COALESCE(ACHIEVEMENT, '—')              AS ACHIEVEMENT,
+    COALESCE(ACHIEVEMENT, '—')     AS ACHIEVEMENT,
     GAME_ENDED_AT
 FROM ARCADE_SCORES
-WHERE GAME_ENDED_AT >= DATEADD('minute', -5, CURRENT_TIMESTAMP())
+WHERE GAME_ENDED_AT >= DATEADD('minute', -5,
+          CONVERT_TIMEZONE('UTC', CURRENT_TIMESTAMP())::TIMESTAMP_NTZ)
 ORDER BY GAME_ENDED_AT DESC
 LIMIT 30;
-
 
 -- =============================================================================
 -- EXERCISE 9  Achievement hunters – rarest badges  (last hour)
@@ -200,16 +200,16 @@ LIMIT 30;
 
 SELECT
     ACHIEVEMENT,
-    COUNT(*)                                AS TIMES_EARNED,
-    COUNT(DISTINCT PLAYER_ID)              AS UNIQUE_EARNERS,
-    ROUND(AVG(SCORE))                       AS AVG_SCORE_WHEN_EARNED,
-    ROUND(AVG(LEVEL_REACHED), 1)            AS AVG_LEVEL
+    COUNT(*)                   AS TIMES_EARNED,
+    COUNT(DISTINCT PLAYER_ID)  AS UNIQUE_EARNERS,
+    ROUND(AVG(SCORE))          AS AVG_SCORE_WHEN_EARNED,
+    ROUND(AVG(LEVEL_REACHED), 1) AS AVG_LEVEL
 FROM ARCADE_SCORES
 WHERE ACHIEVEMENT IS NOT NULL
-  AND GAME_ENDED_AT >= DATEADD('hour', -1, CURRENT_TIMESTAMP())
+  AND GAME_ENDED_AT >= DATEADD('hour', -1,
+          CONVERT_TIMEZONE('UTC', CURRENT_TIMESTAMP())::TIMESTAMP_NTZ)
 GROUP BY ACHIEVEMENT
 ORDER BY TIMES_EARNED ASC;
-
 
 -- =============================================================================
 -- EXERCISE 10  Interactive Warehouse speed demo
@@ -226,7 +226,8 @@ SELECT
     COUNT(*)    AS SESSIONS,
     MAX(SCORE)  AS HIGH_SCORE
 FROM ARCADE_SCORES
-WHERE GAME_ENDED_AT >= DATEADD('hour', -1, CURRENT_TIMESTAMP())
+WHERE GAME_ENDED_AT >= DATEADD('hour', -1,
+          CONVERT_TIMEZONE('UTC', CURRENT_TIMESTAMP())::TIMESTAMP_NTZ)
 GROUP BY PLAYER_COUNTRY
 ORDER BY SESSIONS DESC;
 
@@ -238,7 +239,8 @@ SELECT
     COUNT(*)    AS SESSIONS,
     MAX(SCORE)  AS HIGH_SCORE
 FROM ARCADE_SCORES
-WHERE GAME_ENDED_AT >= DATEADD('hour', -1, CURRENT_TIMESTAMP())
+WHERE GAME_ENDED_AT >= DATEADD('hour', -1,
+          CONVERT_TIMEZONE('UTC', CURRENT_TIMESTAMP())::TIMESTAMP_NTZ)
 GROUP BY PLAYER_COUNTRY
 ORDER BY SESSIONS DESC;
 
@@ -276,15 +278,15 @@ ORDER BY HIGH_SCORE DESC;
 -- BONUS A  Time Travel on an Interactive Table
 -- =============================================================================
 
--- Row count last minute
+-- Row count 5 minutes ago
 SELECT COUNT(*) AS ROWS_5_MIN_AGO
-FROM ARCADE_SCORES AT(OFFSET => -60);
+FROM ARCADE_SCORES AT(OFFSET => -300);
 
--- How many rows were generated in the last minute?
+-- How many rows were generated in the last 5 minutes?
 SELECT COUNT(*) AS NEW_ROWS_LAST_5_MIN
 FROM ARCADE_SCORES
-WHERE GAME_ENDED_AT >= DATEADD('minute', -1, CURRENT_TIMESTAMP());
-
+WHERE GAME_ENDED_AT >= DATEADD('minute', -5,
+          CONVERT_TIMEZONE('UTC', CURRENT_TIMESTAMP())::TIMESTAMP_NTZ);
 
 -- =============================================================================
 -- BONUS B  Rolling 1-minute hotspot – most active cities right now
@@ -295,11 +297,11 @@ SELECT
     PLAYER_COUNTRY,
     COUNT(*) AS GAMES_LAST_MINUTE
 FROM ARCADE_SCORES
-WHERE GAME_ENDED_AT >= DATEADD('minute', -1, CURRENT_TIMESTAMP())
+WHERE GAME_ENDED_AT >= DATEADD('minute', -1,
+          CONVERT_TIMEZONE('UTC', CURRENT_TIMESTAMP())::TIMESTAMP_NTZ)
 GROUP BY PLAYER_CITY, PLAYER_COUNTRY
 ORDER BY GAMES_LAST_MINUTE DESC
 LIMIT 15;
-
 
 -- =============================================================================
 -- BONUS C  Inspect the Interactive Table metadata
@@ -337,12 +339,13 @@ SELECT
     COUNT(*) AS SESSIONS_WITH_BADGE
 FROM ARCADE_SCORES
 WHERE ACHIEVEMENT IS NOT NULL
-  AND GAME_ENDED_AT >= DATEADD('hour', -24, CURRENT_TIMESTAMP())
+  AND GAME_ENDED_AT >= DATEADD('hour', -24,
+          CONVERT_TIMEZONE('UTC', CURRENT_TIMESTAMP())::TIMESTAMP_NTZ)
 GROUP BY ACHIEVEMENT
 ORDER BY SESSIONS_WITH_BADGE ASC, ACHIEVEMENT
 LIMIT 25;
 
--- D2 — Every ghost session in the window (multiple rows: same player, different games / times)
+-- D2 — Every ghost session in the window (same player, different games / times)
 SELECT
     GAME_ENDED_AT,
     PLAYER_NAME,
@@ -356,5 +359,6 @@ SELECT
     ACHIEVEMENT
 FROM ARCADE_SCORES
 WHERE ACHIEVEMENT = 'Summit 2026'
-  AND GAME_ENDED_AT >= DATEADD('hour', -24, CURRENT_TIMESTAMP())
+  AND GAME_ENDED_AT >= DATEADD('hour', -24,
+          CONVERT_TIMEZONE('UTC', CURRENT_TIMESTAMP())::TIMESTAMP_NTZ)
 ORDER BY GAME_ENDED_AT DESC;

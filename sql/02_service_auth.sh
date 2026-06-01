@@ -28,6 +28,12 @@ PRIVATE_KEY_SQL_ESC="${PRIVATE_KEY_FULL//\'/\'\'}"
 
 IP=$(curl -s ifconfig.me)
 
+echo -e "\n"
+echo "************************************************************"
+echo "Start generated SQL.   Please run in Snowsight to complete the setup process:"
+echo "************************************************************"
+echo -e "\n"
+
 cat <<SQL
 -- Run as ACCOUNTADMIN in Snowsight
 USE ROLE ACCOUNTADMIN;
@@ -64,3 +70,8 @@ SELECT TO_JSON(
 ) AS profile_json
 FROM account_ctx a;
 SQL
+
+echo -e "\n"
+echo "************************************************************"
+echo "End generated SQL.  Please scroll up to capture all commands."
+echo "************************************************************"

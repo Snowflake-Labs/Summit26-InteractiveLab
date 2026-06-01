@@ -60,16 +60,6 @@ Azure: All Azure regions
 
 Open **`sql/01_setup.sql`** in Snowsight and run it using a **standard warehouse** session.
 
-### 2 — Register the RSA public key for the service user
-
-```bash
-bash sql/02_service_auth.sh
-```
-
-Generates `rsa_key.p8` / `rsa_key.pub` if they don't exist, then prints the `ALTER USER` statement. Paste it into Snowsight and run it as `ACCOUNTADMIN`.
-
-> `rsa_key.p8` is in `.gitignore` and must never be committed.
-
 The script provisions (in order):
 1. `ARCADE_STREAMING_ROLE` + `ARCADE_STREAMING_USER` + RSA keypair auth policy
 2. `ARCADE_DB` database + `PUBLIC` schema + `SUMMIT_TRAD_WH` standard warehouse
@@ -77,6 +67,18 @@ The script provisions (in order):
 4. `SUMMIT_INT_WH` **Interactive Warehouse** (XS, always-on)
 5. `ARCADE_REPORTING_POOL` compute pool (XS, for the optional Streamlit dashboard)
 6. Grants for `ARCADE_STREAMING_ROLE` and `ARCADE_LAB_READER`
+
+### 2 — Additional setup: Register RSA public key and configure network policy
+
+```bash
+bash sql/02_service_auth.sh
+```
+Generates `rsa_key.p8` / `rsa_key.pub` if they don't exist, then prints additional SQL statements to complete the setup process. This includes an `ALTER USER` statement to register the RSA public key with the service account user.
+
+**IMPORTANT:** You must copy and paste all generated SQL statements into Snowsight and run as `ACCOUNTADMIN` to complete the setup process.
+
+> `rsa_key.p8` is in `.gitignore` and must never be committed.
+
 
 ### 3 — Create `profile.json`
 
@@ -95,6 +97,9 @@ Edit with your account identifier and the **full path** to `rsa_key.p8` (the scr
     "role":             "ARCADE_STREAMING_ROLE"
 }
 ```
+
+For convenience, the output of the final SQL statement from Step 2 contains a fully populated JSON string which can be used direclty in `profile.json`.
+
 
 ### 4 — Install Python dependencies
 

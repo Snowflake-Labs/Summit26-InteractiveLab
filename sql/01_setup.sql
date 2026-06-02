@@ -131,6 +131,7 @@ USE ROLE ACCOUNTADMIN;
 CREATE OR REPLACE INTERACTIVE WAREHOUSE SUMMIT_INT_WH
     TABLES (ARCADE_DB.PUBLIC.ARCADE_SCORES)
     WAREHOUSE_SIZE = 'XSMALL'
+    AUTO_SUSPEND = 86400
     COMMENT = 'XS Interactive Warehouse – Summit 2026 lab queries';
 
 -- ---------------------------------------------------------------------------

@@ -123,7 +123,7 @@ ALTER TABLE ARCADE_DB.PUBLIC.ARCADE_SCORES SET ERROR_LOGGING = TRUE;
 --    • Leverages ARCADE_SCORES clustering metadata and local SSD cache
 --    • SELECT timeout = 5 seconds (cannot be increased – design limit)
 --    • Does NOT auto-suspend; always-on for instant first-query response
---    • Can ONLY query Interactive Tables
+--    • Zero-Copy Interactive (Public Preview): also queries standard and Iceberg tables; the real constraint is the 5-second SELECT cap
 --    • Minimum billing: 1 hour; per-second thereafter
 -- ---------------------------------------------------------------------------
 USE ROLE ACCOUNTADMIN;
@@ -133,6 +133,13 @@ CREATE OR REPLACE INTERACTIVE WAREHOUSE SUMMIT_INT_WH
     WAREHOUSE_SIZE = 'XSMALL'
     AUTO_SUSPEND = 86400
     COMMENT = 'XS Interactive Warehouse – Summit 2026 lab queries';
+
+-- A fallback warehouse transparently re-runs any query that exceeds the 5-second
+-- cap on standard compute.  Without it, a slow query fails outright (000630/57014)
+-- and surfaces as an error to lab participants.
+-- See: https://docs.snowflake.com/en/user-guide/interactive
+ALTER WAREHOUSE SUMMIT_INT_WH SET FALLBACK_WAREHOUSE = SUMMIT_TRAD_WH;
+SHOW PARAMETERS LIKE '%FALLBACK%' IN WAREHOUSE SUMMIT_INT_WH;   -- confirm it took
 
 -- ---------------------------------------------------------------------------
 -- Step 5: Compute pool for Streamlit dashboard

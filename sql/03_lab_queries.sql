@@ -9,7 +9,7 @@
 --
 -- Interactive Warehouse rules:
 --   • SELECT timeout = 5 seconds (add WHERE clauses – it's by design!)
---   • Can ONLY query Interactive Tables (ARCADE_SCORES)
+--   • Zero-Copy Interactive (Public Preview): also queries standard and Iceberg tables; the real constraint is the 5-second cap
 --   • Does NOT auto-suspend; cache stays warm for instant responses
 -- =============================================================================
 

@@ -4,12 +4,12 @@
 --
 -- Pipeline:
 --   Python generator
---     → Snowpipe Streaming SDK (channels)
+--     → Snowpipe Streaming SDK (elastic channels)
 --       → ARCADE_SCORES  (Interactive Table, directly populated)
 --         → SUMMIT_INT_WH  (Interactive Warehouse, XS, always-on)
 --
--- Snowpipe Streaming uses the channel API, not SQL DML, so it writes
--- directly into an Interactive Table without any intermediate landing table.
+-- Snowpipe Streaming writes through elastic channels, so it lands rows
+-- directly in an Interactive Table without any intermediate landing table.
 --
 -- IMPORTANT: CREATE INTERACTIVE TABLE requires a STANDARD warehouse session.
 --            Run this script with SUMMIT_TRAD_WH (created in Step 2).
@@ -75,9 +75,9 @@ USE SCHEMA PUBLIC;
 -- Step 3: Interactive Table  (Snowpipe Streaming writes directly here)
 --
 --  CREATE INTERACTIVE TABLE uses CTAS syntax with WHERE FALSE to define
---  the schema of an initially empty table.  Snowpipe Streaming SDK
---  channels then append rows directly into this table – no intermediate
---  landing table is required.
+--  the schema of an initially empty table.  The Snowpipe Streaming SDK
+--  elastic channel then appends rows directly into this table – no
+--  intermediate landing table is required.
 --
 --  CLUSTER BY (GAME_ENDED_AT)
 --    Aligns with the WHERE GAME_ENDED_AT >= DATEADD(...) predicates in

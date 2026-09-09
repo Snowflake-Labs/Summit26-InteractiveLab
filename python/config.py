@@ -13,7 +13,7 @@ _PROJECT_ROOT = os.path.dirname(_SCRIPT_DIR)
 # ---------------------------------------------------------------------------
 # Snowflake connection (overridden by profile.json; used as fallback)
 # ---------------------------------------------------------------------------
-SNOWFLAKE_ACCOUNT = "YOUR_ACCOUNT_IDENTIFIER"  # e.g. "xy12345" or "orgname-accountname"
+SNOWFLAKE_ACCOUNT = "YOUR_ACCOUNT"  # banner fallback; SDK uses profile.json Account URL from Snowsight
 SNOWFLAKE_USER = "ARCADE_STREAMING_USER"
 SNOWFLAKE_ROLE = "ARCADE_STREAMING_ROLE"
 SNOWFLAKE_DATABASE = "ARCADE_DB"
@@ -24,10 +24,10 @@ PROFILE_JSON_PATH = os.path.join(_PROJECT_ROOT, "profile.json")
 # ---------------------------------------------------------------------------
 # Streaming tuning
 # ---------------------------------------------------------------------------
-NUM_CHANNELS = 1  # parallel SDK channels → higher throughput
-TARGET_ROWS_PER_SEC = 1000  # approx rows/sec across all channels (0 = unlimited)
+NUM_CHANNELS = 1  # parallel producers, each with its own elastic channel
+TARGET_ROWS_PER_SEC = 1000  # approx rows/sec across all producers (0 = unlimited)
 STATS_INTERVAL_SEC = 5  # how often to print throughput stats to console
-BATCH_SIZE = 25  # rows per append_row loop before a short yield
+BATCH_SIZE = 25  # rows per append_rows_with_wait batch
 
 # ---------------------------------------------------------------------------
 # Player skill tiers

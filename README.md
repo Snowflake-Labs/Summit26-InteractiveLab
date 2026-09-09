@@ -14,7 +14,7 @@ in real time, materialise them into an **Interactive Table**, and query with an
  ─────────────────
   Arcade Score Events          Snowpipe Streaming SDK
   (unlimited rows/sec) ──────► StreamingIngestClient
-  20 games                      └─ Channel 0      ──► ARCADE_SCORES
+  20 games                      └─ Elastic channel ──► ARCADE_SCORES
   45 cities                                            (Interactive Table)
   500 players                                          CLUSTER BY (GAME_ENDED_AT)
                                                             │
@@ -24,7 +24,7 @@ in real time, materialise them into an **Interactive Table**, and query with an
                                                   Always-on · sub-second queries
 ```
 
-Snowpipe Streaming uses the **channel API**, not SQL DML, so it writes rows
+Snowpipe Streaming uses **elastic channels**, so it writes rows
 directly into the Interactive Table — no intermediate landing table needed.
 
 ### Warehouse design
@@ -86,13 +86,12 @@ Generates `rsa_key.p8` / `rsa_key.pub` if they don't exist, then prints addition
 cp profile.json.example profile.json
 ```
 
-Edit with your account identifier and the **full path** to `rsa_key.p8` (the script from Step 2 prints the exact path):
+Paste the JSON from Step 2, set `private_key_file` to the **full path** to `rsa_key.p8`, and set `url` to the **Account URL** from Snowsight (account selector → **View account details**). Do not build a hostname from an account locator. See [Locate your Snowflake account information in Snowsight](https://docs.snowflake.com/en/user-guide/ui-snowsight-gs#locate-your-snowflake-account-information-in-snowsight).
 
 ```json
 {
     "user":             "ARCADE_STREAMING_USER",
-    "account":          "YOUR_ORG-YOUR_ACCOUNT",
-    "url":              "https://YOUR_ORG-YOUR_ACCOUNT.snowflakecomputing.com:443",
+    "url":              "PASTE_ACCOUNT_URL_FROM_SNOWSIGHT",
     "private_key_file": "/full/path/to/rsa_key.p8",
     "role":             "ARCADE_STREAMING_ROLE"
 }
@@ -120,17 +119,17 @@ python arcade_streamer.py
 ============================================================
  Summit 2026 – Arcade Scores Snowpipe Streamer
 ============================================================
-  Account   : YOUR_ORG-YOUR_ACCOUNT
+  Account   : https://myorg-myaccount.snowflakecomputing.com
   Database  : ARCADE_DB.PUBLIC
   Pipe      : ARCADE_SCORES-STREAMING
-  Channels  : 1
+  Producers : 1
   Target    : unlimited rows/sec
 ============================================================
 
   [14:22:05]  rows:      512  |  512.0 rows/sec  |  errors: 0  |  elapsed:    1s
-  [14:22:05]  [latency] ARCADE_CHANNEL_0_A3F2B1C4: 540 ms avg
+  [14:22:05]  [latency] ELASTIC: 540 ms avg
   [14:22:10]  rows:    1,024  |  512.0 rows/sec  |  errors: 0  |  elapsed:    6s
-  [14:22:10]  [latency] ARCADE_CHANNEL_0_A3F2B1C4: 512 ms avg
+  [14:22:10]  [latency] ELASTIC: 512 ms avg
 ```
 
 ### 6 — Wait for cache warm-up
@@ -153,14 +152,14 @@ Open **`sql/03_lab_queries.sql`** in Snowsight while the streamer is running.
 ### ⚡ Exercise 1 — Pipeline throughput
 
 Watch row counts grow in real time and measure live ingest throughput (rows/sec).
-The SDK-reported avg processing latency per channel is also printed to the streamer console.
+The SDK-reported avg processing latency on the elastic channel is also printed to the streamer console.
 
 ### ⚡ Exercise 2 — Data freshness
 
 Each row carries `GAME_ENDED_AT` (when the score was generated and sent, in UTC).
 The query measures **freshness**: how many seconds ago was the most recently
 committed row? The streamer's console also logs Snowflake-reported avg processing
-latency per channel via the SDK's `get_channel_statuses()` API.
+latency on the elastic channel via the SDK's `get_channel_status()` API.
 
 ### ⚡ Exercise 3 — Global leaderboard (Interactive Warehouse)
 
@@ -371,13 +370,13 @@ Edit `jmeter/concurrency_test.jmx` to adjust:
 ## Streamer Options
 
 ```bash
-# Default: 1 channel, unlimited rows/sec, runs until Ctrl-C
+# Default: 1 producer, unlimited rows/sec, runs until Ctrl-C
 python arcade_streamer.py
 
 # Throttled demo (50 rows/sec)
 python arcade_streamer.py --rate 50
 
-# Multi-channel high-throughput (4 channels, unlimited)
+# Multiple producers, each with its own elastic channel (4, unlimited)
 python arcade_streamer.py --channels 4
 
 # Insert exactly 10,000 rows then stop

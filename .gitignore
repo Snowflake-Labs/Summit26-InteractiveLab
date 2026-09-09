@@ -1,5 +1,6 @@
 # Snowflake credentials – NEVER commit these
 profile.json
+profile.json.normalized
 rsa_key.p8
 rsa_key.pub
 *.p8

@@ -41,7 +41,7 @@ digraph architecture {
         ]
 
         sdk [
-            label     = "Snowpipe Streaming SDK\nStreamingIngestClient\nChannel 0"
+            label     = "Snowpipe Streaming SDK\nStreamingIngestClient\nElastic channel"
             fillcolor = "#E0F0FF"
             color     = "#0066CC"
             fontcolor = "#1A1A2E"
@@ -82,7 +82,7 @@ digraph architecture {
 
     // ── Cross-boundary edge ──────────────────────────────────────
     sdk -> table [
-        label     = "Snowpipe Streaming\nchannel API\n(no files · no COPY INTO)"
+        label     = "Snowpipe Streaming\nelastic channel\n(no files · no COPY INTO)"
         color     = "#0066CC"
         fontcolor = "#0066CC"
         fontsize  = 11

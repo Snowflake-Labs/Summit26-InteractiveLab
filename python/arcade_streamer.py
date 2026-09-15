@@ -32,7 +32,7 @@ os.environ.setdefault("SS_LOG_LEVEL", "warn")
 import config
 from generator import generate_batch
 
-BACKPRESSURE_WAIT_SECONDS = 0.1
+BACKPRESSURE_TIMEOUT_SECONDS = 30.0
 
 # SDK imported lazily inside main() so --dry-run works without the package installed.
 
@@ -85,20 +85,6 @@ def _account_for_banner(profile_path: str) -> str:
     except (OSError, json.JSONDecodeError, TypeError):
         pass
     return config.SNOWFLAKE_ACCOUNT
-
-
-def _append_with_backpressure_wait(channel: Any, rows: list[dict], token: str):
-    from snowflake.ingest.streaming import StreamingIngestError
-
-    while True:
-        try:
-            return channel.append_rows_with_wait(rows, token)
-        except StreamingIngestError as exc:
-            if exc.http_status_code != 429:
-                raise
-            _STOP_EVENT.wait(BACKPRESSURE_WAIT_SECONDS)
-            if _STOP_EVENT.is_set():
-                raise
 
 
 # ---------------------------------------------------------------------------
@@ -166,6 +152,8 @@ def channel_worker(
     Writes batches through the client's singleton elastic channel until
     _STOP_EVENT is set or the row budget is exhausted.
     """
+    from snowflake.ingest.streaming import StreamingIngestError
+
     global _WORKER_ERROR
 
     channel = client.get_elastic_channel()
@@ -183,9 +171,18 @@ def channel_worker(
 
             batch = generate_batch(rows_to_generate)
             append_seq += 1
-            future = _append_with_backpressure_wait(
-                channel, batch, f"arcade-{worker_id}-{append_seq}"
-            )
+            token = f"arcade-{worker_id}-{append_seq}"
+            deadline = time.monotonic() + BACKPRESSURE_TIMEOUT_SECONDS
+
+            while True:
+                try:
+                    future = channel.append_rows_with_wait(batch, token)
+                    break
+                except StreamingIngestError as exc:
+                    if exc.http_status_code != 429 or time.monotonic() >= deadline or _STOP_EVENT.is_set():
+                        raise
+                    _STOP_EVENT.wait(0.1)
+
             future.result()
             STATS.add(len(batch), 0)
 

@@ -105,17 +105,23 @@ def test_row_budget_is_shared_safely_by_multiple_producers():
 
 
 def test_synchronous_backpressure_retries_the_same_batch(monkeypatch):
-    reset_globals(1)
+    budget = reset_globals(1)
     rows = [{"id": 1}]
     future = completed_future()
     calls = []
 
     class BackpressuredChannel:
+        channel_name = "ELASTIC"
+
         def append_rows_with_wait(self, received_rows, token):
             calls.append(received_rows)
             if len(calls) == 1:
                 raise FakeIngestError(429)
             return future
+
+    class BackpressuredClient:
+        def get_elastic_channel(self):
+            return BackpressuredChannel()
 
     streaming_module = types.SimpleNamespace(StreamingIngestError=FakeIngestError)
     ingest_module = types.SimpleNamespace(streaming=streaming_module)
@@ -123,14 +129,44 @@ def test_synchronous_backpressure_retries_the_same_batch(monkeypatch):
     monkeypatch.setitem(sys.modules, "snowflake", snowflake_module)
     monkeypatch.setitem(sys.modules, "snowflake.ingest", ingest_module)
     monkeypatch.setitem(sys.modules, "snowflake.ingest.streaming", streaming_module)
-    monkeypatch.setattr(arcade_streamer, "BACKPRESSURE_WAIT_SECONDS", 0)
+    monkeypatch.setattr(arcade_streamer, "generate_batch", lambda count: rows)
 
-    returned = arcade_streamer._append_with_backpressure_wait(
-        BackpressuredChannel(), rows, "batch-1"
-    )
+    arcade_streamer.channel_worker(BackpressuredClient(), 0, budget, 1, 0)
 
-    assert returned is future
+    assert arcade_streamer.STATS.total_rows == 1
     assert calls == [rows, rows]
+
+
+def test_persistent_backpressure_times_out_and_raises(monkeypatch):
+    budget = reset_globals(1)
+    rows = [{"id": 1}]
+    calls = []
+
+    class Always429Channel:
+        channel_name = "ELASTIC"
+
+        def append_rows_with_wait(self, received_rows, token):
+            calls.append(received_rows)
+            raise FakeIngestError(429)
+
+    class Always429Client:
+        def get_elastic_channel(self):
+            return Always429Channel()
+
+    streaming_module = types.SimpleNamespace(StreamingIngestError=FakeIngestError)
+    ingest_module = types.SimpleNamespace(streaming=streaming_module)
+    snowflake_module = types.SimpleNamespace(ingest=ingest_module)
+    monkeypatch.setitem(sys.modules, "snowflake", snowflake_module)
+    monkeypatch.setitem(sys.modules, "snowflake.ingest", ingest_module)
+    monkeypatch.setitem(sys.modules, "snowflake.ingest.streaming", streaming_module)
+    monkeypatch.setattr(arcade_streamer, "generate_batch", lambda count: rows)
+    monkeypatch.setattr(arcade_streamer, "BACKPRESSURE_TIMEOUT_SECONDS", 0.0)
+
+    arcade_streamer.channel_worker(Always429Client(), 0, budget, 1, 0)
+
+    assert arcade_streamer.STATS.total_rows == 0
+    assert arcade_streamer.STATS.total_errors == 1
+    assert isinstance(arcade_streamer._WORKER_ERROR, FakeIngestError)
 
 
 class TestAccountFromUrl:

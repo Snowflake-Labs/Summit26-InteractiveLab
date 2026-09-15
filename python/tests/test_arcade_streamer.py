@@ -1,4 +1,6 @@
 from concurrent.futures import Future
+import json
+import os
 import sys
 import threading
 import types
@@ -129,3 +131,74 @@ def test_synchronous_backpressure_retries_the_same_batch(monkeypatch):
 
     assert returned is future
     assert calls == [rows, rows]
+
+
+class TestAccountFromUrl:
+    def test_standard_url(self):
+        uri, account = arcade_streamer._account_from_url(
+            "https://myorg-myaccount.snowflakecomputing.com"
+        )
+        assert uri == "https://myorg-myaccount.snowflakecomputing.com"
+        assert account == "myorg-myaccount"
+
+    def test_strips_trailing_slash(self):
+        uri, account = arcade_streamer._account_from_url(
+            "https://myorg-myaccount.snowflakecomputing.com/"
+        )
+        assert uri == "https://myorg-myaccount.snowflakecomputing.com"
+        assert account == "myorg-myaccount"
+
+    def test_adds_scheme_when_missing(self):
+        uri, account = arcade_streamer._account_from_url(
+            "myorg-myaccount.snowflakecomputing.com"
+        )
+        assert uri == "https://myorg-myaccount.snowflakecomputing.com"
+        assert account == "myorg-myaccount"
+
+    def test_strips_port(self):
+        uri, account = arcade_streamer._account_from_url(
+            "https://myorg-myaccount.snowflakecomputing.com:443"
+        )
+        assert account == "myorg-myaccount"
+
+    def test_strips_privatelink(self):
+        uri, account = arcade_streamer._account_from_url(
+            "https://myorg-myaccount.privatelink.snowflakecomputing.com"
+        )
+        assert account == "myorg-myaccount"
+
+
+class TestNormalizeProfile:
+    def test_rejects_placeholder_url(self, tmp_path):
+        profile = tmp_path / "profile.json"
+        profile.write_text(json.dumps({"url": "PASTE_ACCOUNT_URL_FROM_SNOWSIGHT"}))
+        try:
+            arcade_streamer._normalize_profile(str(profile))
+            assert False, "Should have raised SystemExit"
+        except SystemExit:
+            pass
+
+    def test_rejects_empty_url(self, tmp_path):
+        profile = tmp_path / "profile.json"
+        profile.write_text(json.dumps({"url": ""}))
+        try:
+            arcade_streamer._normalize_profile(str(profile))
+            assert False, "Should have raised SystemExit"
+        except SystemExit:
+            pass
+
+    def test_writes_normalized_file_with_account(self, tmp_path):
+        profile = tmp_path / "profile.json"
+        profile.write_text(json.dumps({
+            "user": "TEST_USER",
+            "url": "https://myorg-myaccount.snowflakecomputing.com",
+            "private_key_file": "/tmp/key.p8",
+            "role": "TEST_ROLE",
+        }))
+        result = arcade_streamer._normalize_profile(str(profile))
+        assert result == str(profile) + ".normalized"
+        assert os.path.exists(result)
+        with open(result) as f:
+            data = json.load(f)
+        assert data["account"] == "myorg-myaccount"
+        assert data["url"] == "https://myorg-myaccount.snowflakecomputing.com"

@@ -1,7 +1,6 @@
 {
     "user":             "ARCADE_STREAMING_USER",
-    "account":          "YOUR_ACCOUNT_IDENTIFIER",
-    "url":              "https://YOUR_ACCOUNT_IDENTIFIER.snowflakecomputing.com:443",
+    "url":              "PASTE_ACCOUNT_URL_FROM_SNOWSIGHT",
     "private_key_file": "/full/path/to/rsa_key.p8",
     "role":             "ARCADE_STREAMING_ROLE"
 }

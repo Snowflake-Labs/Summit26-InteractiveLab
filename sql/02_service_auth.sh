@@ -51,24 +51,17 @@ ALTER USER ARCADE_STREAMING_USER SET NETWORK_POLICY = GH_WORKSPACE_POLICY;
 ALTER USER ARCADE_STREAMING_USER SET RSA_PUBLIC_KEY='${PUBK}';
 
 -- Copy the profile_json value into profile.json (project root).
-WITH account_ctx AS (
-  SELECT IFF(
-    CURRENT_ORGANIZATION_NAME() IS NOT NULL
-    AND TRIM(CURRENT_ORGANIZATION_NAME()) <> '',
-    CURRENT_ORGANIZATION_NAME() || '-' || CURRENT_ACCOUNT_NAME(),
-    CURRENT_ACCOUNT_NAME()
-  ) AS account_identifier
-)
+-- Replace PASTE_ACCOUNT_URL_FROM_SNOWSIGHT with the Account URL from Snowsight
+-- (account selector -> View account details). Do not build a hostname from a locator.
+-- https://docs.snowflake.com/en/user-guide/ui-snowsight-gs#locate-your-snowflake-account-information-in-snowsight
 SELECT TO_JSON(
   OBJECT_CONSTRUCT(
     'user',             'ARCADE_STREAMING_USER',
-    'account',          a.account_identifier,
-    'url',              'https://' || a.account_identifier || '.snowflakecomputing.com:443',
+    'url',              'PASTE_ACCOUNT_URL_FROM_SNOWSIGHT',
     'private_key_file', '${PRIVATE_KEY_SQL_ESC}',
     'role',             'ARCADE_STREAMING_ROLE'
   )
-) AS profile_json
-FROM account_ctx a;
+) AS profile_json;
 SQL
 
 echo -e "\n"

@@ -97,7 +97,7 @@ Paste the JSON from Step 2, set `private_key_file` to the **full path** to `rsa_
 }
 ```
 
-For convenience, the output of the final SQL statement from Step 2 contains a fully populated JSON string which can be used direclty in `profile.json`.
+The output of the final SQL statement from Step 2 contains a JSON string for `profile.json`. Replace the Account URL placeholder before running the streamer.
 
 
 ### 4 — Install Python dependencies
@@ -385,6 +385,10 @@ python arcade_streamer.py --rows 10000
 # Preview generated data without connecting to Snowflake
 python arcade_streamer.py --dry-run --rows 5
 ```
+
+The streamer counts a batch only after its durable acknowledgement completes. A failed
+acknowledgement stops all producers. Finite runs share one row budget, so multiple
+producers still stop at the requested count.
 
 ---
 

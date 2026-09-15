@@ -32,7 +32,7 @@ os.environ.setdefault("SS_LOG_LEVEL", "warn")
 import config
 from generator import generate_batch
 
-ACK_TIMEOUT_SECONDS = 120
+BACKPRESSURE_WAIT_SECONDS = 0.1
 
 # SDK imported lazily inside main() so --dry-run works without the package installed.
 
@@ -87,6 +87,20 @@ def _account_for_banner(profile_path: str) -> str:
     return config.SNOWFLAKE_ACCOUNT
 
 
+def _append_with_backpressure_wait(channel: Any, rows: list[dict], token: str):
+    from snowflake.ingest.streaming import StreamingIngestError
+
+    while True:
+        try:
+            return channel.append_rows_with_wait(rows, token)
+        except StreamingIngestError as exc:
+            if exc.http_status_code != 429:
+                raise
+            _STOP_EVENT.wait(BACKPRESSURE_WAIT_SECONDS)
+            if _STOP_EVENT.is_set():
+                raise
+
+
 # ---------------------------------------------------------------------------
 # Stats tracker (shared across threads)
 # ---------------------------------------------------------------------------
@@ -115,10 +129,26 @@ class Stats:
         return rps
 
 
+class RowBudget:
+    def __init__(self, rows_target: int | None) -> None:
+        self._lock = threading.Lock()
+        self._remaining = rows_target
+
+    def reserve(self, rows_per_batch: int) -> int:
+        with self._lock:
+            if self._remaining is None:
+                return rows_per_batch
+            rows = min(rows_per_batch, self._remaining)
+            self._remaining -= rows
+            return rows
+
+
 STATS = Stats()
 _STOP_EVENT = threading.Event()
 _ACTIVE_CHANNELS: list[Any] = []
 _CHANNELS_LOCK = threading.Lock()
+_WORKER_ERROR: BaseException | None = None
+_WORKER_ERROR_LOCK = threading.Lock()
 
 
 # ---------------------------------------------------------------------------
@@ -128,14 +158,16 @@ _CHANNELS_LOCK = threading.Lock()
 def channel_worker(
     client: Any,
     worker_id: int,
-    rows_target: int | None,
+    row_budget: RowBudget,
     rows_per_batch: int,
     sleep_per_batch: float,
 ) -> None:
     """
     Writes batches through the client's singleton elastic channel until
-    _STOP_EVENT is set or rows_target is reached.
+    _STOP_EVENT is set or the row budget is exhausted.
     """
+    global _WORKER_ERROR
+
     channel = client.get_elastic_channel()
     with _CHANNELS_LOCK:
         _ACTIVE_CHANNELS.append(channel)
@@ -145,29 +177,28 @@ def channel_worker(
         print(f"  [producer-{worker_id}] opened elastic channel: {channel.channel_name}")
 
         while not _STOP_EVENT.is_set():
-            if rows_target is not None and STATS.total_rows >= rows_target:
-                _STOP_EVENT.set()
+            rows_to_generate = row_budget.reserve(rows_per_batch)
+            if rows_to_generate == 0:
                 break
 
-            batch = generate_batch(rows_per_batch)
+            batch = generate_batch(rows_to_generate)
             append_seq += 1
-            try:
-                future = channel.append_rows_with_wait(
-                    batch, f"arcade-{worker_id}-{append_seq}"
-                )
-                future.result(timeout=ACK_TIMEOUT_SECONDS)
-                STATS.add(len(batch), 0)
-            except Exception as exc:
-                STATS.add(0, len(batch))
-                print(
-                    f"  [producer-{worker_id}] append_rows_with_wait error: {exc}",
-                    file=sys.stderr,
-                )
+            future = _append_with_backpressure_wait(
+                channel, batch, f"arcade-{worker_id}-{append_seq}"
+            )
+            future.result()
+            STATS.add(len(batch), 0)
 
             if sleep_per_batch > 0:
                 _STOP_EVENT.wait(timeout=sleep_per_batch)
 
         print(f"  [producer-{worker_id}] closing.")
+    except BaseException as exc:
+        STATS.add(0, len(batch) if "batch" in locals() else 0)
+        with _WORKER_ERROR_LOCK:
+            if _WORKER_ERROR is None:
+                _WORKER_ERROR = exc
+        _STOP_EVENT.set()
     finally:
         with _CHANNELS_LOCK:
             if channel in _ACTIVE_CHANNELS:
@@ -293,6 +324,7 @@ def main() -> None:
     num_producers  = args.channels
     rows_target    = args.rows
     rows_per_batch = config.BATCH_SIZE
+    row_budget     = RowBudget(rows_target)
 
     if args.rate > 0:
         rows_per_producer_per_sec = args.rate / num_producers
@@ -348,7 +380,7 @@ def main() -> None:
         for i, client in enumerate(clients):
             t = threading.Thread(
                 target=channel_worker,
-                args=(client, i, rows_target, rows_per_batch, sleep_per_batch),
+                args=(client, i, row_budget, rows_per_batch, sleep_per_batch),
                 daemon=True,
             )
             t.start()
@@ -376,6 +408,9 @@ def main() -> None:
     print(f"  Elapsed time        : {elapsed:.1f}s")
     print(f"  Average throughput  : {STATS.total_rows / elapsed:.1f} rows/sec")
     print("=" * 60)
+
+    if _WORKER_ERROR is not None:
+        raise _WORKER_ERROR
 
 
 if __name__ == "__main__":
